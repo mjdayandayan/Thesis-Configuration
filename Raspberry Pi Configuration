@@ -1,0 +1,13 @@
+1. Download Raspberry Pi Imager in official Raspberry Pi website
+2. Connect SD card to laptop using Micro SD card reader. Memory should be minimum 32 gigabytes
+3. Open Raspberry Pi Imager
+4. Select Raspberry Pi 5 in Device
+5. Select Raspberry Pi OS 64 bit in OS
+6. Select Generic MassStorageClass USB Drive as storage
+7. Choose hostname (raspberrypi)
+8. Select time zone and keyboard layout
+10. Create username and password (username: pi, password: raspberrypi)
+11. Enter wifi credentials
+12. Enable SSH
+13. Disable Raspberry Pi Connect
+14. Wrote the data, it's okay if the data on the sd card is erased
