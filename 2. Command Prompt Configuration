@@ -1,0 +1,14 @@
+1. Open Command Prompt
+2. Ping <hostname>
+3. Enter password
+4. sudo apt update && sudo apt upgrade -y
+5. sudo reboot
+6. ssh pi@<hostname>
+7. Enter password
+8. sudo nmcli dev wifi list
+9. press q to get back to prompt
+10. sudo nmcli connection add tyoe wifi ifname wlan0 con-name "NAME" ssid "WIFI-name"
+11. sudo nmcli connection modify "NAME" wifi-sec.key-mgmt wpa-psk
+12. sudo nmcli connection modify "NAME" wifi-sec.psk "WIFI_PASSWORD"
+13. sudo nmcli connection modify "NAME" connection.autoconnect yes
+14. nmcli connection show (if it shows green, it's connected. If white, it's idle)
