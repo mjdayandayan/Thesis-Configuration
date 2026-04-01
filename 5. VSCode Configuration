@@ -1,0 +1,9 @@
+## VS CODE REMOTE DEVELOPMENT
+1. Open VS Code
+2. Install the Remote-SSH extension
+3. Press ctrl+shift+P; then Remote-SSH:Connect to Host"
+4. Enter pi@trio or use IP address
+5. Open folder /home/pi/thesis
+
+## SENSOR CODE
+
