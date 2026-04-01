@@ -11,8 +11,9 @@ How to configure Raspberry Pi 5 for thesis "NB-IoT Enabled Rice Monitoring Syste
 6. USB Web Camera
 7. Soil Moisture Sensor
 8. Temperature and Humidity Sensor
-9. NB-IoT Module
-10. NB-IoT Sim
+9. ADS1115 ADC Module (16-bit, I2C)
+10. NB-IoT Module
+11. NB-IoT Sim
 
 # Software Needed
 1. Raspberry Pi Imager
