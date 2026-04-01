@@ -1,0 +1,35 @@
+┌─────────────────────────────────────────────────────────────────┐
+│                      RASPBERRY PI 5                              │
+│                                                                  │
+│  USB ←──────── USB Webcam                                       │
+│                                                                  │
+│  GPIO Pinout:                                                    │
+│  ┌─────────────────────────────────────┐                        │
+│  │ 3.3V (Pin 1)  ──→ DHT22 VCC         │                        │
+│  │ GPIO 4 (Pin 7) ──→ DHT22 DATA       │                        │
+│  │ GND (Pin 9)   ──→ DHT22 GND         │                        │
+│  │                                      │                        │
+│  │ 3.3V (Pin 17) ──→ ADS1115 VDD       │                        │
+│  │ GND (Pin 20)  ──→ ADS1115 GND       │                        │
+│  │ SDA (Pin 3)   ──→ ADS1115 SDA       │                        │
+│  │ SCL (Pin 5)   ──→ ADS1115 SCL       │                        │
+│  └─────────────────────────────────────┘                        │
+│                                                                  │
+│  ADS1115 A0 ←──── Soil Moisture Sensor Analog Out               │
+│  Soil Sensor VCC ──→ 3.3V or 5V (check your sensor specs)       │
+│  Soil Sensor GND ──→ GND                                        │
+└─────────────────────────────────────────────────────────────────┘
+
+## ENABLE I2C
+1. Open pi prompt
+2. sudo raspi-config
+3. Navigate to Interface Options - I2C - Enable
+4. sudo reboot
+5. sudo apt install -y i2c-tools
+6. i2cdetect -y 1
+7. You should see the ADS1115 at address 0x48
+
+## TEST USB WEBCAM
+1. sudo apt install -y v4l-utils
+2. v4l2-ctl --list-devices
+3. The webcam should appear as /dev/video0 or similar
