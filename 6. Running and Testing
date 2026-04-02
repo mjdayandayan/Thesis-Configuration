@@ -23,7 +23,7 @@ chmod +x ~/thesis/models/your-model-name.eim
 SSH into the Pi and activate the virtual environment:
 ```bash
 cd ~/thesis
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 **Test DHT22 sensor:**
@@ -111,8 +111,8 @@ Wants=network-online.target
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/thesis
-Environment=PATH=/home/pi/thesis/venv/bin:/usr/bin:/usr/local/bin
-ExecStart=/home/pi/thesis/venv/bin/python /home/pi/thesis/src/main.py
+Environment=PATH=/home/pi/thesis/.venv/bin:/usr/bin:/usr/local/bin
+ExecStart=/home/pi/thesis/.venv/bin/python /home/pi/thesis/src/main.py
 Restart=always
 RestartSec=10
 StandardOutput=journal

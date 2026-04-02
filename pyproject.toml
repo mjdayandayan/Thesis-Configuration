@@ -1,0 +1,42 @@
+[project]
+name = "rice-paddy-monitor"
+version = "1.0.0"
+description = "NB-IoT Enabled Rice Monitoring System Using Raspberry Pi V5 and Computer Vision"
+requires-python = ">=3.11"
+
+dependencies = [
+    # Sensor libraries
+    "adafruit-circuitpython-dht",
+    "RPi.GPIO",
+
+    # Camera and computer vision
+    "opencv-python-headless",
+    "numpy",
+    "pillow",
+
+    # Edge Impulse inference
+    "edge_impulse_linux",
+
+    # Data transmission
+    "paho-mqtt",
+    "requests",
+]
+
+[project.optional-dependencies]
+# Install with: uv sync --extra analog
+analog = [
+    "adafruit-circuitpython-ads1x15",
+]
+# Install with: uv sync --extra nbiot
+nbiot = [
+    "pyserial",
+]
+# Install with: uv sync --extra dashboard
+dashboard = [
+    "flask",
+]
+# Install everything: uv sync --all-extras
+
+[tool.uv]
+# Ensure resolution targets Linux ARM (Raspberry Pi 5)
+environments = ["sys_platform == 'linux'"]

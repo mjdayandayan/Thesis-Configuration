@@ -1,15 +1,10 @@
 ## STEP 4: DEVELOPMENT ENVIRONMENT SETUP
 
-### Create Project Directory and Virtual Environment
+### Create Project Directory
 SSH into the Pi, then run:
 ```bash
-# Create project directory
 mkdir -p ~/thesis
 cd ~/thesis
-
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
 ```
 
 ### Install System Dependencies
@@ -21,35 +16,57 @@ sudo apt install -y v4l-utils
 sudo apt install -y libopencv-dev python3-opencv
 ```
 
-### Install Python Packages
+### Install uv (Fast Python Package Manager)
 ```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env
+```
+Verify it installed:
+```bash
+uv --version
+```
+
+### Install Dependencies with uv
+After copying the project files to `~/thesis/` (see Step 5), run:
+```bash
+cd ~/thesis
+uv sync
+```
+This reads `pyproject.toml` + `uv.lock`, creates a `.venv`, and installs all locked dependencies in one command.
+
+**To include optional extras:**
+```bash
+# When ADS1115 ADC arrives:
+uv sync --extra analog
+
+# When NB-IoT module arrives:
+uv sync --extra nbiot
+
+# For local web dashboard:
+uv sync --extra dashboard
+
+# Everything at once:
+uv sync --all-extras
+```
+
+### Activate the Virtual Environment
+uv creates the venv at `.venv/` (not `venv/`):
+```bash
+source .venv/bin/activate
+```
+
+### Alternative: Install with pip (if you prefer)
+```bash
+python3 -m venv venv
+source venv/bin/activate
 pip install --upgrade pip
-
-# Sensor libraries
-pip install adafruit-circuitpython-dht
-pip install RPi.GPIO                     # For digital GPIO soil moisture
-
-# Camera and CV
-pip install opencv-python-headless numpy pillow
-
-# Edge Impulse inference
-pip install edge_impulse_linux
-
-# Data transmission (optional, for future use)
-pip install paho-mqtt requests
-
-# Web dashboard (optional)
-pip install flask
+pip install -r requirements.txt
 ```
 
 ### Future: When ADS1115 ADC Arrives
 ```bash
-# Activate venv first
-cd ~/thesis && source venv/bin/activate
-
-# Install ADC library
-pip install adafruit-circuitpython-ads1x15
-
+cd ~/thesis
+uv sync --extra analog
 # Then change SOIL_SENSOR_MODE to "analog" in config/settings.py
 ```
 
@@ -76,7 +93,10 @@ print('All core dependencies installed successfully!')
 ### Project Structure
 ```
 ~/thesis/
-├── venv/                          # Python virtual environment
+├── .venv/                         # Virtual environment (created by uv sync)
+├── pyproject.toml                 # Project metadata and dependencies
+├── uv.lock                       # Locked dependency versions
+├── requirements.txt               # Fallback for pip users
 ├── models/
 │   └── your-edge-impulse-model.eim  # Edge Impulse model file
 ├── src/
@@ -89,6 +109,5 @@ print('All core dependencies installed successfully!')
 ├── config/
 │   └── settings.py                # All configuration in one place
 ├── logs/                          # Runtime logs
-├── data/                          # Saved sensor data and images
-└── requirements.txt               # Python dependencies
+└── data/                          # Saved sensor data and images
 ```
