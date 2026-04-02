@@ -6,4 +6,63 @@
 5. Open folder /home/pi/thesis
 
 ## SENSOR CODE
+1. Project Structure
+~/rice-paddy-monitor/
+├── venv/
+├── models/
+│   └── your-edge-impulse-model.eim
+├── src/
+│   ├── __init__.py
+│   ├── sensors.py
+│   ├── camera.py
+│   ├── inference.py
+│   └── main.py
+├── config/
+│   └── settings.py
+├── logs/
+├── data/
+└── requirements.txt
+
+2. Create the structure
+  cd~/thesis
+  mkdir -p src config logs data models
+  touch src/_init_.py
+
+3. Configurate File
+
+"""
+Configuration settings for Rice Paddy Monitoring System
+Modify these values for your specific setup
+"""
+
+# Sensor Configuration
+DHT_PIN = 4  # GPIO pin for DHT22 data
+SOIL_MOISTURE_CHANNEL = 0  # ADS1115 channel (A0)
+
+# Soil moisture calibration values
+# Measure these with your actual sensor:
+# - SOIL_DRY: ADC value when sensor is in dry air
+# - SOIL_WET: ADC value when sensor is submerged in water
+SOIL_DRY = 20000   # Typical dry value (adjust after calibration)
+SOIL_WET = 8000    # Typical wet value (adjust after calibration)
+
+# Camera Configuration
+CAMERA_INDEX = 0  # Usually 0 for USB webcam
+CAMERA_WIDTH = 640
+CAMERA_HEIGHT = 480
+
+# Edge Impulse Model
+MODEL_PATH = "/home/pi/thesis/models/your-model.eim"
+
+# Data Logging
+LOG_INTERVAL_SECONDS = 300  # Log sensor data every 5 minutes
+DATA_DIR = "/home/pi/thesis/data"
+LOG_DIR = "/home/pi/thesis/logs"
+
+# Thresholds for alerts (adjust based on rice paddy requirements)
+TEMP_MIN = 20.0  # Celsius
+TEMP_MAX = 35.0
+HUMIDITY_MIN = 60.0  # Percent
+HUMIDITY_MAX = 90.0
+SOIL_MOISTURE_MIN = 40.0  # Percent (paddy rice needs wet soil)
 
