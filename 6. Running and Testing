@@ -1,0 +1,60 @@
+## COPY THE EDGE IMPULSE MODEL
+1. Go to Edge Impulse project - Deployment
+2. Select Linux (AARCH64) - this is for Raspberry Pi 5
+3. Build and download the eim. file
+4. Copy it to the Pi:
+  scp ~/Downloads/your-model.eim pi@trio:~/thesis/models/
+5. Update config/settings.py with correct model filename
+
+## TEST INDIVIDUAL COMPONENTS
+
+cd ~/rice-paddy-monitor
+source venv/bin/activate
+# Test sensors
+python src/sensors.py
+# Test camera
+python src/camera.py
+# Test inference (after model is in place)
+python src/inference.py
+
+
+## RUN THE FULL SYSTEM
+
+# Single reading (for testing)
+python src/main.py --once
+# Continuous monitoring
+python src/main.py
+
+
+##RUN AS A SERVICE (AUTO START ON BOOT)
+1. Create a systemd service
+
+sudo nano /etc/systemd/system/thesis.service
+
+[Unit]
+Description=Rice Paddy Monitoring System
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/rice-paddy-monitor
+Environment=PATH=/home/pi/rice-paddy-monitor/venv/bin:/usr/bin
+ExecStart=/home/pi/rice-paddy-monitor/venv/bin/python /home/pi/rice-paddy-monitor/src/main.py
+Restart=always
+RestartSec=10
+[Install]
+WantedBy=multi-user.target
+
+2. Enable and start
+
+sudo systemctl daemon-reload
+sudo systemctl enable rice-monitor.service
+sudo systemctl start rice-monitor.service
+
+# Check status
+sudo systemctl status rice-monitor.service
+# View logs
+journalctl -u rice-monitor.service -f
+
+
