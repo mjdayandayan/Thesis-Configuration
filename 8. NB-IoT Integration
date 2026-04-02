@@ -1,0 +1,78 @@
+## Create Data Transmission Model (Stub)
+1. src/transmit.py
+
+"""
+Data transmission module - supports WiFi and NB-IoT
+"""
+
+import json
+import time
+
+class DataTransmitter:
+    """Handles data transmission to remote server"""
+    
+    def __init__(self, mode='wifi'):
+        """
+        Args:
+            mode: 'wifi', 'nbiot', or 'auto'
+        """
+        self.mode = mode
+        self.server_url = None  # Set your server endpoint
+    
+    def send(self, data):
+        """Send data to server"""
+        # Placeholder - implement based on your server setup
+        # Could use HTTP POST, MQTT, or CoAP for NB-IoT
+        
+        if self.mode == 'nbiot':
+            return self._send_nbiot(data)
+        else:
+            return self._send_wifi(data)
+    
+    def _send_wifi(self, data):
+        """Send via WiFi (HTTP/MQTT)"""
+        # Implement based on your server
+        print(f"[WiFi] Would send: {json.dumps(data)[:100]}...")
+        return True
+    
+    def _send_nbiot(self, data):
+        """Send via NB-IoT"""
+        # Implement when module arrives
+        # Typically uses AT commands or a library
+        print(f"[NB-IoT] Would send: {json.dumps(data)[:100]}...")
+        return True
+    
+    def check_connection(self):
+        """Check if network is available"""
+        import subprocess
+        try:
+            subprocess.check_call(
+                ['ping', '-c', '1', '8.8.8.8'],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            return True
+        except subprocess.CalledProcessError:
+            return False
+
+
+2. Network Fallback Logic
+
+def get_active_connection():
+    """Determine which network connection is active"""
+    import subprocess
+    result = subprocess.run(
+        ['nmcli', '-t', '-f', 'TYPE,STATE', 'connection', 'show', '--active'],
+        capture_output=True, text=True
+    )
+    
+    connections = result.stdout.strip().split('\n')
+    for conn in connections:
+        if 'wifi:activated' in conn:
+            return 'wifi'
+        if 'gsm:activated' in conn:
+            return 'nbiot'
+        if 'ethernet:activated' in conn:
+            return 'ethernet'
+    
+    return None
