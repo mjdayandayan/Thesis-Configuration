@@ -1,0 +1,34 @@
+## CALIBRATE SOIL MOISTURE SENSOR
+
+cd ~/rice-paddy-monitor
+source venv/bin/activate
+python -c "
+from src.sensors import SoilMoistureSensor
+import time
+
+sensor = SoilMoistureSensor()
+
+print('Soil Moisture Sensor Calibration')
+print('=' * 40)
+
+input('\n1. Hold sensor in DRY AIR, then press Enter...')
+dry_readings = []
+for i in range(10):
+    dry_readings.append(sensor.read_raw())
+    time.sleep(0.5)
+dry_value = sum(dry_readings) // len(dry_readings)
+print(f'   DRY value: {dry_value}')
+
+input('\n2. Submerge sensor in WATER, then press Enter...')
+wet_readings = []
+for i in range(10):
+    wet_readings.append(sensor.read_raw())
+    time.sleep(0.5)
+wet_value = sum(wet_readings) // len(wet_readings)
+print(f'   WET value: {wet_value}')
+
+print('\n' + '=' * 40)
+print('Update config/settings.py with:')
+print(f'SOIL_DRY = {dry_value}')
+print(f'SOIL_WET = {wet_value}')
+"
