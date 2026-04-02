@@ -1,16 +1,29 @@
-## INITIAL RASPBERRY PI SETUP
+## STEP 1: INITIAL RASPBERRY PI SETUP
 
-1. Download Raspberry Pi Imager in official Raspberry Pi website
-2. Connect SD card to laptop using Micro SD card reader. Memory should be minimum 32 gigabytes
+### Flash the SD Card
+1. Download **Raspberry Pi Imager** from https://www.raspberrypi.com/software/
+2. Connect the Micro SD card to your laptop using the SD card reader (minimum 32 GB)
 3. Open Raspberry Pi Imager
-4. Select Raspberry Pi 5 in Device
-5. Select Raspberry Pi OS 64 bit in OS
-6. Select Generic MassStorageClass USB Drive as storage
-7. Choose hostname (trio)
-8. Select time zone and keyboard layout
-10. Create username and password (username: pi, password: raspberrypi)
-11. Enter wifi credentials
-12. Enable SSH
-13. Disable Raspberry Pi Connect
-14. Write the data, it's okay if the data on the sd card is erased
-15. Once it's done, insert the SD card to Raspberry Pi and turn the microcomputer on. Wait for 1-2 minutes for booting
+4. **Device**: Select **Raspberry Pi 5**
+5. **OS**: Select **Raspberry Pi OS (64-bit)** — Debian Bookworm based
+6. **Storage**: Select your SD card (Generic MassStorageClass USB Drive)
+7. Click **Next**, then **Edit Settings**
+
+### OS Customization Settings
+8. **General Tab**:
+   - Hostname: `trio` (or your preferred hostname)
+   - Username: `pi`
+   - Password: `raspberrypi` (change this for production!)
+   - WiFi SSID and password: Enter your **current** WiFi credentials
+   - Locale: Set your timezone and keyboard layout
+9. **Services Tab**:
+   - **Enable SSH** ✓ (Use password authentication)
+10. Click **Save**, then **Yes** to apply settings
+11. Click **Yes** to confirm erasing the SD card — wait for write + verification to complete
+
+### First Boot
+12. Eject the SD card safely from your laptop
+13. Insert the SD card into the Raspberry Pi 5
+14. Connect power supply — the Pi will boot automatically
+15. **Wait 2-3 minutes** for the first boot (it will expand filesystem and apply settings)
+16. The Pi is now running headless — you'll access it via SSH from Step 2

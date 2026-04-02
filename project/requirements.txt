@@ -1,0 +1,27 @@
+# Rice Paddy Monitoring System - Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# Sensor libraries
+adafruit-circuitpython-dht
+RPi.GPIO
+
+# Camera and computer vision
+opencv-python-headless
+numpy
+pillow
+
+# Edge Impulse inference
+edge_impulse_linux
+
+# Data transmission
+paho-mqtt
+requests
+
+# Web dashboard (optional)
+# flask
+
+# Future: Analog soil moisture via ADS1115
+# adafruit-circuitpython-ads1x15
+
+# Future: NB-IoT serial communication
+# pyserial

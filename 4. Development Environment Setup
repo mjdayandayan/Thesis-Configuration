@@ -1,19 +1,94 @@
-## INSTALL PYTHON DEPENDENCIES
-  # Create project directory
-  mkdir -p ~/thesis
-  cd ~/thesis
+## STEP 4: DEVELOPMENT ENVIRONMENT SETUP
 
-  # Create virtual environment
-  python3 -m venv venv
-  source venv/bin/activate
+### Create Project Directory and Virtual Environment
+SSH into the Pi, then run:
+```bash
+# Create project directory
+mkdir -p ~/thesis
+cd ~/thesis
 
-  # Install required packages
-  pip install --upgrade pip
-  pip install adafruit-circuitpython-dht adafruit-circuitpython-ads1x15
-  pip install opencv-python numpy pillow
-  pip install edge_impulse_linux  # For Edge Impulse model inference
-  pip install paho-mqtt           # For data transmission (optional)
-  pip install flask               # For local web dashboard (optional)
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate
+```
 
-  ##INSTALL SYSTEM DEPENDENCIES FOR DHT SENSOR
-  1. sudo apt install -y libgpiod2
+### Install System Dependencies
+These are needed by the DHT22 sensor library and OpenCV:
+```bash
+sudo apt install -y libgpiod2 python3-libgpiod
+sudo apt install -y libcap-dev
+sudo apt install -y v4l-utils
+sudo apt install -y libopencv-dev python3-opencv
+```
+
+### Install Python Packages
+```bash
+pip install --upgrade pip
+
+# Sensor libraries
+pip install adafruit-circuitpython-dht
+pip install RPi.GPIO                     # For digital GPIO soil moisture
+
+# Camera and CV
+pip install opencv-python-headless numpy pillow
+
+# Edge Impulse inference
+pip install edge_impulse_linux
+
+# Data transmission (optional, for future use)
+pip install paho-mqtt requests
+
+# Web dashboard (optional)
+pip install flask
+```
+
+### Future: When ADS1115 ADC Arrives
+```bash
+# Activate venv first
+cd ~/thesis && source venv/bin/activate
+
+# Install ADC library
+pip install adafruit-circuitpython-ads1x15
+
+# Then change SOIL_SENSOR_MODE to "analog" in config/settings.py
+```
+
+### Create Project Structure
+```bash
+cd ~/thesis
+mkdir -p src config logs data models
+touch src/__init__.py
+```
+
+### Verify Installation
+```bash
+python3 -c "
+import adafruit_dht
+import cv2
+import RPi.GPIO as GPIO
+print('adafruit_dht OK')
+print(f'OpenCV {cv2.__version__} OK')
+print('RPi.GPIO OK')
+print('All core dependencies installed successfully!')
+"
+```
+
+### Project Structure
+```
+~/thesis/
+├── venv/                          # Python virtual environment
+├── models/
+│   └── your-edge-impulse-model.eim  # Edge Impulse model file
+├── src/
+│   ├── __init__.py
+│   ├── sensors.py                 # DHT22 + soil moisture (digital/analog)
+│   ├── camera.py                  # USB webcam capture
+│   ├── inference.py               # Edge Impulse model inference
+│   ├── transmit.py                # Data transmission (WiFi/NB-IoT)
+│   └── main.py                    # Main monitoring loop
+├── config/
+│   └── settings.py                # All configuration in one place
+├── logs/                          # Runtime logs
+├── data/                          # Saved sensor data and images
+└── requirements.txt               # Python dependencies
+```

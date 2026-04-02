@@ -1,43 +1,110 @@
-## BOOT AND SSH ACCESS
-1. Open Command Prompt
-2. Ping trio
-3. Enter password
+## STEP 2: BOOT AND SSH ACCESS
 
-## SYSTEM UPDATES
-4. sudo apt update && sudo apt upgrade -y
-5. sudo reboot
+### First Connection
+1. Open **Command Prompt** (or PowerShell) on your laptop
+2. SSH into the Pi:
+   ```
+   ssh pi@trio.local
+   ```
+   If `trio.local` doesn't resolve, find the Pi's IP from your router admin page and use:
+   ```
+   ssh pi@<IP_ADDRESS>
+   ```
+3. Type `yes` when prompted about the fingerprint, then enter your password: `raspberrypi`
 
-## BACK TO PI PROMPT
-6. ssh pi@<hostname>
-7. Enter password
+### System Updates
+4. Update all packages (this may take several minutes):
+   ```
+   sudo apt update && sudo apt upgrade -y
+   ```
+5. Reboot after updates:
+   ```
+   sudo reboot
+   ```
+6. Wait ~1 minute, then reconnect:
+   ```
+   ssh pi@trio.local
+   ```
 
 ## NETWORK CONFIGURATION FOR PORTABILITY
-8. sudo nmcli dev wifi list
-9. press q to get back to prompt
-10. sudo nmcli connection add tyoe wifi ifname wlan0 con-name "NAME" ssid "WIFI-name"
-11. sudo nmcli connection modify "NAME" wifi-sec.key-mgmt wpa-psk
-12. sudo nmcli connection modify "NAME" wifi-sec.psk "WIFI_PASSWORD"
-13. sudo nmcli connection modify "NAME" connection.autoconnect yes
-14. nmcli connection show (if it shows green, it's connected. If white, it's idle)
-15. Continue adding connection if needed
+This is critical — pre-configure ALL WiFi networks you'll use so you never lose SSH access when moving the Pi between locations.
 
-## PREPARE FOR NB-IOT (FUTURE PROOFING)
-1. Enter in prompt:
-  mkdir -p ~/network-configs
-  cat > ~/network-configs/README.md << 'EOF'
-  # Network Configuration Notes
-  ## Current Networks
-  - HOME_SSID: Primary development
-  - LAB_SSID: University lab
-  - FIELD_SSID: Field testing location
-  ## NB-IoT Integration (Future)
-  When NB-IoT module arrives:
-  1. Module will likely appear as /dev/ttyUSB0 or similar
-  2. Use NetworkManager's GSM/cellular connection type
-  3. Command template:
-     sudo nmcli connection add type gsm ifname "*" con-name "nbiot" apn "YOUR_APN"
-  ## Fallback Priority
-  1. Ethernet (if connected)
-  2. WiFi (by priority)
-  3. NB-IoT (lowest priority, for field deployment)
-  EOF
+### List Available Networks
+7. Scan for nearby WiFi networks:
+   ```
+   sudo nmcli dev wifi list
+   ```
+   Press `q` to return to the prompt.
+
+### Add Additional WiFi Networks
+For EACH WiFi network you'll use (home, school, lab, field site, mobile hotspot), run:
+```
+sudo nmcli connection add type wifi ifname wlan0 con-name "NETWORK_LABEL" ssid "ACTUAL_WIFI_NAME"
+sudo nmcli connection modify "NETWORK_LABEL" wifi-sec.key-mgmt wpa-psk
+sudo nmcli connection modify "NETWORK_LABEL" wifi-sec.psk "WIFI_PASSWORD"
+sudo nmcli connection modify "NETWORK_LABEL" connection.autoconnect yes
+```
+
+**Example — adding your school WiFi:**
+```
+sudo nmcli connection add type wifi ifname wlan0 con-name "school" ssid "UniversityWiFi"
+sudo nmcli connection modify "school" wifi-sec.key-mgmt wpa-psk
+sudo nmcli connection modify "school" wifi-sec.psk "school_password_here"
+sudo nmcli connection modify "school" connection.autoconnect yes
+```
+
+**Example — adding a mobile hotspot as backup:**
+```
+sudo nmcli connection add type wifi ifname wlan0 con-name "hotspot" ssid "MyPhoneHotspot"
+sudo nmcli connection modify "hotspot" wifi-sec.key-mgmt wpa-psk
+sudo nmcli connection modify "hotspot" wifi-sec.psk "hotspot_password"
+sudo nmcli connection modify "hotspot" connection.autoconnect yes
+```
+
+### Set Network Priority (optional but recommended)
+Higher priority = preferred connection. Set your primary development WiFi highest:
+```
+sudo nmcli connection modify "home" connection.autoconnect-priority 100
+sudo nmcli connection modify "school" connection.autoconnect-priority 50
+sudo nmcli connection modify "hotspot" connection.autoconnect-priority 10
+```
+
+### Verify All Saved Networks
+```
+nmcli connection show
+```
+Green = active, white = saved but idle.
+
+### How It Works
+- When the Pi boots, NetworkManager automatically connects to the highest-priority available network
+- If you move locations, it auto-connects to the next available saved network
+- You never need to reconfigure — just add networks once
+- When NB-IoT arrives, it will be added as the lowest-priority fallback
+
+## PREPARE FOR NB-IOT (FUTURE-PROOFING)
+Create a reference file on the Pi for when your NB-IoT module arrives:
+```
+mkdir -p ~/network-configs
+cat > ~/network-configs/README.md << 'EOF'
+# Network Configuration Notes
+
+## Saved WiFi Networks
+- home: Primary development
+- school: University lab
+- hotspot: Mobile hotspot backup
+
+## NB-IoT Integration (Future)
+When NB-IoT module arrives:
+1. Module will appear as /dev/ttyUSB0 or /dev/ttyAMA0
+2. Use NetworkManager GSM/cellular connection type
+3. Command: sudo nmcli connection add type gsm ifname "*" con-name "nbiot" apn "YOUR_APN"
+4. Set lowest priority: sudo nmcli connection modify "nbiot" connection.autoconnect-priority 1
+
+## Connection Priority Order
+1. Ethernet (if connected)
+2. WiFi home (priority 100)
+3. WiFi school (priority 50)
+4. WiFi hotspot (priority 10)
+5. NB-IoT (priority 1 — field deployment only)
+EOF
+```

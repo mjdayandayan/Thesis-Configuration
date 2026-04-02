@@ -1,35 +1,82 @@
-┌─────────────────────────────────────────────────────────────────┐
-│                      RASPBERRY PI 5                              │
-│                                                                  │
-│  USB ←──────── USB Webcam                                       │
-│                                                                  │
-│  GPIO Pinout:                                                    │
-│  ┌─────────────────────────────────────┐                        │
-│  │ 3.3V (Pin 1)  ──→ DHT22 VCC         │                        │
-│  │ GPIO 4 (Pin 7) ──→ DHT22 DATA       │                        │
-│  │ GND (Pin 9)   ──→ DHT22 GND         │                        │
-│  │                                      │                        │
-│  │ 3.3V (Pin 17) ──→ ADS1115 VDD       │                        │
-│  │ GND (Pin 20)  ──→ ADS1115 GND       │                        │
-│  │ SDA (Pin 3)   ──→ ADS1115 SDA       │                        │
-│  │ SCL (Pin 5)   ──→ ADS1115 SCL       │                        │
-│  └─────────────────────────────────────┘                        │
-│                                                                  │
-│  ADS1115 A0 ←──── Soil Moisture Sensor Analog Out               │
-│  Soil Sensor VCC ──→ 3.3V or 5V (check your sensor specs)       │
-│  Soil Sensor GND ──→ GND                                        │
-└─────────────────────────────────────────────────────────────────┘
+## STEP 3: HARDWARE WIRING
 
-## ENABLE I2C
-1. Open pi prompt
-2. sudo raspi-config
-3. Navigate to Interface Options - I2C - Enable
-4. sudo reboot
-5. sudo apt install -y i2c-tools
-6. i2cdetect -y 1
-7. You should see the ADS1115 at address 0x48
+### CURRENT SETUP (Digital Soil Moisture — No ADC needed)
+```
+┌───────────────────────────────────────────────────────────────────┐
+│                        RASPBERRY PI 5                             │
+│                                                                   │
+│  USB Port ←────── USB Webcam                                     │
+│                                                                   │
+│  GPIO Pinout:                                                     │
+│  ┌───────────────────────────────────────────┐                   │
+│  │                                           │                   │
+│  │  DHT22 Temperature/Humidity Sensor:       │                   │
+│  │  ┌────────────────────────────────────┐   │                   │
+│  │  │ 3.3V  (Pin 1)  ──→ DHT22 VCC (+)  │   │                   │
+│  │  │ GPIO4 (Pin 7)  ──→ DHT22 DATA     │   │                   │
+│  │  │ GND   (Pin 9)  ──→ DHT22 GND (-)  │   │                   │
+│  │  └────────────────────────────────────┘   │                   │
+│  │                                           │                   │
+│  │  Soil Moisture Sensor (DIGITAL mode):     │                   │
+│  │  ┌────────────────────────────────────┐   │                   │
+│  │  │ 3.3V  (Pin 17) ──→ Sensor VCC     │   │                   │
+│  │  │ GND   (Pin 20) ──→ Sensor GND     │   │                   │
+│  │  │ GPIO17(Pin 11) ──→ Sensor DO (*)  │   │                   │
+│  │  └────────────────────────────────────┘   │                   │
+│  │  (*) DO = Digital Output pin on the       │                   │
+│  │      soil moisture sensor module          │                   │
+│  │  NOTE: The analog (AO) pin is NOT used    │                   │
+│  │        until you have the ADS1115 ADC     │                   │
+│  │                                           │                   │
+│  └───────────────────────────────────────────┘                   │
+│                                                                   │
+│  FUTURE SETUP (when ADS1115 ADC arrives):                        │
+│  ┌───────────────────────────────────────────┐                   │
+│  │ 3.3V  (Pin 17) ──→ ADS1115 VDD           │                   │
+│  │ GND   (Pin 20) ──→ ADS1115 GND           │                   │
+│  │ SDA   (Pin 3)  ──→ ADS1115 SDA           │                   │
+│  │ SCL   (Pin 5)  ──→ ADS1115 SCL           │                   │
+│  │ ADS1115 A0     ←── Soil Sensor AO (analog)│                  │
+│  └───────────────────────────────────────────┘                   │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### Soil Moisture Sensor Module Pinout
+Most soil moisture sensor modules have 4 pins:
+- **VCC** → 3.3V power
+- **GND** → Ground
+- **DO** → Digital Output (HIGH = dry, LOW = wet) ← **USE THIS NOW**
+- **AO** → Analog Output (variable voltage) ← Use later with ADS1115
+
+**Important**: The sensor module has a small **potentiometer** (blue trim pot).
+Turn it to adjust the wet/dry threshold for the digital output.
+- Clockwise = less sensitive (needs more water to trigger LOW)
+- Counter-clockwise = more sensitive (triggers LOW with less water)
+
+### DHT22 Notes
+- Some DHT22 modules have a built-in pull-up resistor (3-pin module). If yours is the bare 4-pin component, add a **10kΩ pull-up resistor** between VCC and DATA.
+- The sensor requires at least **2 seconds** between reads.
 
 ## TEST USB WEBCAM
-1. sudo apt install -y v4l-utils
-2. v4l2-ctl --list-devices
-3. The webcam should appear as /dev/video0 or similar
+After wiring, SSH into the Pi and check the camera:
+```
+sudo apt install -y v4l-utils
+v4l2-ctl --list-devices
+```
+The webcam should appear as `/dev/video0` or similar.
+
+## ENABLE I2C (for future ADS1115)
+This doesn't hurt to enable now:
+```
+sudo raspi-config
+```
+Navigate to **Interface Options → I2C → Enable**, then:
+```
+sudo reboot
+```
+After reboot, verify with:
+```
+sudo apt install -y i2c-tools
+i2cdetect -y 1
+```
+(You won't see any devices until the ADS1115 is connected)

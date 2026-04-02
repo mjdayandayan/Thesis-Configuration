@@ -1,60 +1,148 @@
-## COPY THE EDGE IMPULSE MODEL
-1. Go to Edge Impulse project - Deployment
-2. Select Linux (AARCH64) - this is for Raspberry Pi 5
-3. Build and download the eim. file
-4. Copy it to the Pi:
-  scp ~/Downloads/your-model.eim pi@trio:~/thesis/models/
-5. Update config/settings.py with correct model filename
+## STEP 6: DEPLOY MODEL AND TEST
 
-## TEST INDIVIDUAL COMPONENTS
+### Copy the Edge Impulse Model
+1. In your **Edge Impulse** project, go to **Deployment**
+2. Select **Linux (AARCH64)** — this is for Raspberry Pi 5
+3. Build and download the `.eim` file
+4. From your laptop's terminal, copy it to the Pi:
+   ```
+   scp ~/Downloads/your-model-name.eim pi@trio.local:~/thesis/models/
+   ```
+5. Update `config/settings.py` with the correct filename:
+   ```python
+   MODEL_PATH = "/home/pi/thesis/models/your-model-name.eim"
+   ```
 
-cd ~/rice-paddy-monitor
+### Make the Model Executable
+```bash
+ssh pi@trio.local
+chmod +x ~/thesis/models/your-model-name.eim
+```
+
+### Test Individual Components
+SSH into the Pi and activate the virtual environment:
+```bash
+cd ~/thesis
 source venv/bin/activate
-# Test sensors
-python src/sensors.py
-# Test camera
-python src/camera.py
-# Test inference (after model is in place)
-python src/inference.py
+```
 
+**Test DHT22 sensor:**
+```bash
+python3 -c "
+from src.sensors import DHTSensor
+sensor = DHTSensor()
+result = sensor.read()
+if result:
+    print(f'Temperature: {result[\"temperature\"]}°C')
+    print(f'Humidity: {result[\"humidity\"]}%')
+else:
+    print('Failed to read DHT22 — check wiring')
+sensor.cleanup()
+"
+```
 
-## RUN THE FULL SYSTEM
+**Test soil moisture sensor (digital mode):**
+```bash
+python3 -c "
+from src.sensors import SoilMoistureSensor
+sensor = SoilMoistureSensor()
+result = sensor.read()
+print(f'Soil is: {result[\"status\"]}')
+print(f'Digital pin value: {result[\"digital_value\"]}')
+sensor.cleanup()
+"
+```
 
-# Single reading (for testing)
-python src/main.py --once
-# Continuous monitoring
-python src/main.py
+**Test USB webcam:**
+```bash
+python3 -c "
+from src.camera import Camera
+cam = Camera()
+frame = cam.capture_frame()
+if frame is not None:
+    print(f'Captured frame: {frame.shape}')
+    cam.save_frame(frame, 'data/test_capture.jpg')
+    print('Saved test image to data/test_capture.jpg')
+else:
+    print('Failed to capture — check camera connection')
+cam.release()
+"
+```
 
+**Test Edge Impulse inference (after model is deployed):**
+```bash
+python3 -c "
+from src.inference import ModelInference
+model = ModelInference()
+from src.camera import Camera
+cam = Camera()
+frame = cam.capture_frame()
+if frame is not None:
+    results = model.classify(frame)
+    print(f'Inference results: {results}')
+cam.release()
+"
+```
 
-##RUN AS A SERVICE (AUTO START ON BOOT)
-1. Create a systemd service
+### Run the Full System
 
-sudo nano /etc/systemd/system/thesis.service
+**Single reading (for testing):**
+```bash
+python3 src/main.py --once
+```
 
+**Continuous monitoring:**
+```bash
+python3 src/main.py
+```
+Press `Ctrl+C` to stop.
+
+### Run as a Service (Auto-Start on Boot)
+Create a systemd service so the monitoring starts automatically:
+
+```bash
+sudo tee /etc/systemd/system/thesis.service << 'EOF'
 [Unit]
 Description=Rice Paddy Monitoring System
-After=network.target
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/home/pi/rice-paddy-monitor
-Environment=PATH=/home/pi/rice-paddy-monitor/venv/bin:/usr/bin
-ExecStart=/home/pi/rice-paddy-monitor/venv/bin/python /home/pi/rice-paddy-monitor/src/main.py
+WorkingDirectory=/home/pi/thesis
+Environment=PATH=/home/pi/thesis/venv/bin:/usr/bin:/usr/local/bin
+ExecStart=/home/pi/thesis/venv/bin/python /home/pi/thesis/src/main.py
 Restart=always
 RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
 [Install]
 WantedBy=multi-user.target
+EOF
+```
 
-2. Enable and start
-
+Enable and start:
+```bash
 sudo systemctl daemon-reload
-sudo systemctl enable rice-monitor.service
-sudo systemctl start rice-monitor.service
+sudo systemctl enable thesis.service
+sudo systemctl start thesis.service
+```
 
-# Check status
-sudo systemctl status rice-monitor.service
-# View logs
-journalctl -u rice-monitor.service -f
+Check status:
+```bash
+sudo systemctl status thesis.service
+```
+
+View live logs:
+```bash
+journalctl -u thesis.service -f
+```
+
+Stop the service (for development):
+```bash
+sudo systemctl stop thesis.service
+```
 
 

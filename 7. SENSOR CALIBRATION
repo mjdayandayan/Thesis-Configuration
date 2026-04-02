@@ -1,17 +1,84 @@
-## CALIBRATE SOIL MOISTURE SENSOR
+## STEP 7: SENSOR CALIBRATION
 
-cd ~/rice-paddy-monitor
+### Soil Moisture Sensor — Digital Mode Calibration
+With the digital output (DO) pin, the sensor gives a binary wet/dry reading.
+The threshold is controlled by the **potentiometer** on the sensor module.
+
+**Calibration procedure:**
+1. Insert the sensor prongs into **dry soil** (or hold in air)
+2. Turn the potentiometer until the module's LED **just turns off**
+   (this sets the threshold near the dry point)
+3. Insert the sensor into **wet/moist soil** (like rice paddy conditions)
+4. The LED should turn **on** — if not, turn the potentiometer slightly counter-clockwise
+5. Fine-tune until the sensor reliably switches between wet and dry at your desired moisture level
+
+**Test the calibration:**
+```bash
+cd ~/thesis
 source venv/bin/activate
-python -c "
+
+python3 -c "
 from src.sensors import SoilMoistureSensor
 import time
 
 sensor = SoilMoistureSensor()
 
-print('Soil Moisture Sensor Calibration')
+print('Soil Moisture Digital Calibration Test')
+print('=' * 40)
+print('Move the sensor between dry and wet soil.')
+print('Press Ctrl+C to stop.\n')
+
+try:
+    while True:
+        result = sensor.read()
+        print(f'Status: {result[\"status\"]:5s} | Digital: {result[\"digital_value\"]}')
+        time.sleep(1)
+except KeyboardInterrupt:
+    print('\nDone.')
+finally:
+    sensor.cleanup()
+"
+```
+
+### DHT22 Sensor Verification
+The DHT22 doesn't need calibration, but verify readings are reasonable:
+```bash
+python3 -c "
+from src.sensors import DHTSensor
+import time
+
+sensor = DHTSensor()
+
+print('DHT22 Sensor Verification')
+print('=' * 40)
+print('Taking 5 readings (10 seconds)...\n')
+
+for i in range(5):
+    result = sensor.read()
+    if result:
+        print(f'Reading {i+1}: {result[\"temperature\"]}°C, {result[\"humidity\"]}%')
+    else:
+        print(f'Reading {i+1}: FAILED')
+    time.sleep(2)
+
+sensor.cleanup()
+print('\nIf readings are reasonable for your environment, the sensor is working.')
+"
+```
+
+### Future: Analog Soil Moisture Calibration (when ADS1115 arrives)
+When you switch to analog mode, you'll need these calibration values:
+```bash
+python3 -c "
+from src.sensors import SoilMoistureSensorAnalog
+import time
+
+sensor = SoilMoistureSensorAnalog()
+
+print('Analog Soil Moisture Calibration')
 print('=' * 40)
 
-input('\n1. Hold sensor in DRY AIR, then press Enter...')
+input('\n1. Hold sensor in DRY AIR, press Enter...')
 dry_readings = []
 for i in range(10):
     dry_readings.append(sensor.read_raw())
@@ -19,7 +86,7 @@ for i in range(10):
 dry_value = sum(dry_readings) // len(dry_readings)
 print(f'   DRY value: {dry_value}')
 
-input('\n2. Submerge sensor in WATER, then press Enter...')
+input('\n2. Submerge sensor in WATER, press Enter...')
 wet_readings = []
 for i in range(10):
     wet_readings.append(sensor.read_raw())
@@ -27,8 +94,9 @@ for i in range(10):
 wet_value = sum(wet_readings) // len(wet_readings)
 print(f'   WET value: {wet_value}')
 
-print('\n' + '=' * 40)
-print('Update config/settings.py with:')
+print(f'\nUpdate config/settings.py with:')
 print(f'SOIL_DRY = {dry_value}')
 print(f'SOIL_WET = {wet_value}')
+sensor.cleanup()
 "
+```

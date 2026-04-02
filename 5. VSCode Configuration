@@ -1,201 +1,53 @@
-NOTE: ALL CODES NEED TO BE EDITED
+## STEP 5: VSCODE REMOTE DEVELOPMENT
 
-## VS CODE REMOTE DEVELOPMENT
-1. Open VS Code
-2. Install the Remote-SSH extension
-3. Press ctrl+shift+P; then Remote-SSH:Connect to Host"
-4. Enter pi@trio or use IP address
-5. Open folder /home/pi/thesis
+### Install Remote-SSH Extension
+1. Open **VS Code** on your laptop
+2. Go to **Extensions** (Ctrl+Shift+X)
+3. Search for **"Remote - SSH"** by Microsoft — install it
 
-## SENSOR CODE
-1. Project Structure
-~/rice-paddy-monitor/
-├── venv/
-├── models/
-│   └── your-edge-impulse-model.eim
-├── src/
-│   ├── __init__.py
-│   ├── sensors.py
-│   ├── camera.py
-│   ├── inference.py
-│   └── main.py
-├── config/
-│   └── settings.py
-├── logs/
-├── data/
-└── requirements.txt
+### Connect to the Pi
+4. Press **Ctrl+Shift+P** → type **"Remote-SSH: Connect to Host"**
+5. Enter: `pi@trio.local` (or `pi@<IP_ADDRESS>`)
+6. Select **Linux** as the platform if prompted
+7. Enter your password: `raspberrypi`
+8. VS Code will install its server on the Pi (first time takes ~2 minutes)
 
-2. Create the structure
-  cd~/thesis
-  mkdir -p src config logs data models
-  touch src/_init_.py
+### Open Project Folder
+9. Once connected, click **File → Open Folder**
+10. Navigate to `/home/pi/thesis` and click **OK**
+11. You now have full VS Code editing with IntelliSense on the Pi's files
 
-3. Configurate File
+### Select Python Interpreter
+12. Press **Ctrl+Shift+P** → **"Python: Select Interpreter"**
+13. Select `/home/pi/thesis/venv/bin/python`
 
-"""
-Configuration settings for Rice Paddy Monitoring System
-Modify these values for your specific setup
-"""
+### Recommended VS Code Extensions (install on SSH host)
+- **Python** (Microsoft)
+- **Pylance** (Microsoft)
 
-# Sensor Configuration
-DHT_PIN = 4  # GPIO pin for DHT22 data
-SOIL_MOISTURE_CHANNEL = 0  # ADS1115 channel (A0)
+### Open Terminal in VS Code
+14. Press **Ctrl+`** (backtick) to open the integrated terminal
+15. It should show the Pi's shell. Activate the venv:
+    ```bash
+    cd ~/thesis && source venv/bin/activate
+    ```
 
-# Soil moisture calibration values
-# Measure these with your actual sensor:
-# - SOIL_DRY: ADC value when sensor is in dry air
-# - SOIL_WET: ADC value when sensor is submerged in water
-SOIL_DRY = 20000   # Typical dry value (adjust after calibration)
-SOIL_WET = 8000    # Typical wet value (adjust after calibration)
+### Deploy Project Files
+Now create all the project files. You can either:
+- **Option A**: Create files directly in VS Code (copy from the `project/` folder in this repo)
+- **Option B**: Copy from your laptop using SCP:
+  ```
+  scp -r project/src/* pi@trio.local:~/thesis/src/
+  scp -r project/config/* pi@trio.local:~/thesis/config/
+  scp project/requirements.txt pi@trio.local:~/thesis/
+  ```
 
-# Camera Configuration
-CAMERA_INDEX = 0  # Usually 0 for USB webcam
-CAMERA_WIDTH = 640
-CAMERA_HEIGHT = 480
-
-# Edge Impulse Model
-MODEL_PATH = "/home/pi/thesis/models/your-model.eim"
-
-# Data Logging
-LOG_INTERVAL_SECONDS = 300  # Log sensor data every 5 minutes
-DATA_DIR = "/home/pi/thesis/data"
-LOG_DIR = "/home/pi/thesis/logs"
-
-# Thresholds for alerts (adjust based on rice paddy requirements)
-TEMP_MIN = 20.0  # Celsius
-TEMP_MAX = 35.0
-HUMIDITY_MIN = 60.0  # Percent
-HUMIDITY_MAX = 90.0
-SOIL_MOISTURE_MIN = 40.0  # Percent (paddy rice needs wet soil)
-
-
-##SENSOR MODULE
-1. src/sensors.py
-
-"""
-Sensor interface for DHT22 (temperature/humidity) and soil moisture
-"""
-
-import time
-import board
-import adafruit_dht
-import busio
-import adafruit_ads1x15.ads1115 as ADS
-from adafruit_ads1x15.analog_in import AnalogIn
-
-import sys
-sys.path.append('/home/pi/rice-paddy-monitor')
-from config.settings import (
-    DHT_PIN, SOIL_MOISTURE_CHANNEL,
-    SOIL_DRY, SOIL_WET
-)
-
-
-class DHTSensor:
-    """Interface for DHT22 temperature and humidity sensor"""
-    
-    def __init__(self, pin=DHT_PIN):
-        # Map GPIO number to board pin
-        self.pin = getattr(board, f"D{pin}")
-        self.sensor = adafruit_dht.DHT22(self.pin, use_pulseio=False)
-        self._last_temp = None
-        self._last_humidity = None
-    
-    def read(self, retries=3):
-        """
-        Read temperature and humidity with retry logic.
-        DHT sensors are notoriously flaky, so retries are essential.
-        
-        Returns:
-            dict: {'temperature': float, 'humidity': float} or None on failure
-        """
-        for attempt in range(retries):
-            try:
-                temperature = self.sensor.temperature
-                humidity = self.sensor.humidity
-                
-                if temperature is not None and humidity is not None:
-                    self._last_temp = temperature
-                    self._last_humidity = humidity
-                    return {
-                        'temperature': round(temperature, 2),
-                        'humidity': round(humidity, 2)
-                    }
-            except RuntimeError as e:
-                # DHT sensors throw RuntimeError frequently, just retry
-                print(f"DHT read attempt {attempt + 1} failed: {e}")
-                time.sleep(2)  # DHT22 needs at least 2 seconds between reads
-            except Exception as e:
-                print(f"Unexpected DHT error: {e}")
-                time.sleep(2)
-        
-        # Return last known good values if all retries fail
-        if self._last_temp is not None:
-            print("Returning cached DHT values")
-            return {
-                'temperature': self._last_temp,
-                'humidity': self._last_humidity
-            }
-        return None
-    
-    def cleanup(self):
-        """Release sensor resources"""
-        self.sensor.exit()
-
-
-class SoilMoistureSensor:
-    """Interface for analog soil moisture sensor via ADS1115 ADC"""
-    
-    def __init__(self, channel=SOIL_MOISTURE_CHANNEL):
-        # Initialize I2C
-        self.i2c = busio.I2C(board.SCL, board.SDA)
-        self.ads = ADS.ADS1115(self.i2c)
-        
-        # Set up the analog input channel
-        self.channel = AnalogIn(self.ads, getattr(ADS, f"P{channel}"))
-        
-        # Calibration values
-        self.dry_value = SOIL_DRY
-        self.wet_value = SOIL_WET
-    
-    def read_raw(self):
-        """Read raw ADC value"""
-        return self.channel.value
-    
-    def read_voltage(self):
-        """Read voltage value"""
-        return self.channel.voltage
-    
-    def read_percentage(self):
-        """
-        Convert raw ADC reading to moisture percentage.
-        0% = completely dry, 100% = saturated
-        
-        Returns:
-            float: Moisture percentage (0-100)
-        """
-        raw = self.read_raw()
-        
-        # Map raw value to percentage (inverted because lower value = more wet)
-        percentage = (self.dry_value - raw) / (self.dry_value - self.wet_value) * 100
-        
-        # Clamp to 0-100 range
-        percentage = max(0, min(100, percentage))
-        
-        return round(percentage, 2)
-    
-    def read(self):
-        """
-        Read all soil moisture values.
-        
-        Returns:
-            dict: {'raw': int, 'voltage': float, 'percentage': float}
-        """
-        return {
-            'raw': self.read_raw(),
-            'voltage': round(self.read_voltage(), 3),
-            'percentage': self.read_percentage()
-        }
+### Network Resilience
+If you lose connection because WiFi changed:
+1. Move to a location with one of your pre-configured WiFi networks (from Step 2)
+2. Wait ~30 seconds for the Pi to auto-connect
+3. In VS Code, click **"Reconnect"** or press Ctrl+Shift+P → "Remote-SSH: Connect to Host" again
+4. Your files and terminal state are preserved on the Pi — nothing is lost
 
 
 class SensorHub:

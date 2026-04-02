@@ -1,78 +1,84 @@
-## Create Data Transmission Model (Stub)
-1. src/transmit.py
+## STEP 8: NB-IoT INTEGRATION (When Module Arrives)
 
-"""
-Data transmission module - supports WiFi and NB-IoT
-"""
+### Prerequisites
+- NB-IoT module (e.g., SIM7000, SIM7020, Quectel BC95/BC66, u-blox SARA-R4)
+- NB-IoT SIM card with active data plan
+- Module connected via USB or UART to the Pi
 
-import json
-import time
+### Hardware Connection
+Most NB-IoT modules connect via USB (appears as `/dev/ttyUSB0`) or UART:
+```
+NB-IoT Module UART connection (if not USB):
+  Module TX  ──→  Pi GPIO15 (RXD, Pin 10)
+  Module RX  ──→  Pi GPIO14 (TXD, Pin 8)
+  Module GND ──→  Pi GND
+  Module VCC ──→  5V (check your module's voltage requirement)
+```
 
-class DataTransmitter:
-    """Handles data transmission to remote server"""
-    
-    def __init__(self, mode='wifi'):
-        """
-        Args:
-            mode: 'wifi', 'nbiot', or 'auto'
-        """
-        self.mode = mode
-        self.server_url = None  # Set your server endpoint
-    
-    def send(self, data):
-        """Send data to server"""
-        # Placeholder - implement based on your server setup
-        # Could use HTTP POST, MQTT, or CoAP for NB-IoT
-        
-        if self.mode == 'nbiot':
-            return self._send_nbiot(data)
-        else:
-            return self._send_wifi(data)
-    
-    def _send_wifi(self, data):
-        """Send via WiFi (HTTP/MQTT)"""
-        # Implement based on your server
-        print(f"[WiFi] Would send: {json.dumps(data)[:100]}...")
-        return True
-    
-    def _send_nbiot(self, data):
-        """Send via NB-IoT"""
-        # Implement when module arrives
-        # Typically uses AT commands or a library
-        print(f"[NB-IoT] Would send: {json.dumps(data)[:100]}...")
-        return True
-    
-    def check_connection(self):
-        """Check if network is available"""
-        import subprocess
-        try:
-            subprocess.check_call(
-                ['ping', '-c', '1', '8.8.8.8'],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL
-            )
-            return True
-        except subprocess.CalledProcessError:
-            return False
+### Software Setup
+1. Install serial communication library:
+   ```bash
+   cd ~/thesis && source venv/bin/activate
+   pip install pyserial
+   ```
 
+2. Check if module is detected:
+   ```bash
+   ls /dev/ttyUSB* /dev/ttyAMA* 2>/dev/null
+   ```
 
-2. Network Fallback Logic
+3. Test AT commands:
+   ```bash
+   python3 -c "
+   import serial
+   import time
+   ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=5)
+   ser.write(b'AT\r\n')
+   time.sleep(1)
+   response = ser.read(ser.in_waiting).decode()
+   print(f'Response: {response}')
+   ser.close()
+   "
+   ```
+   You should see `OK` in the response.
 
-def get_active_connection():
-    """Determine which network connection is active"""
-    import subprocess
-    result = subprocess.run(
-        ['nmcli', '-t', '-f', 'TYPE,STATE', 'connection', 'show', '--active'],
-        capture_output=True, text=True
-    )
-    
-    connections = result.stdout.strip().split('\n')
-    for conn in connections:
-        if 'wifi:activated' in conn:
-            return 'wifi'
-        if 'gsm:activated' in conn:
-            return 'nbiot'
-        if 'ethernet:activated' in conn:
-            return 'ethernet'
-    
-    return None
+### Add NB-IoT as Network Fallback
+```bash
+# Add NB-IoT connection with lowest priority
+sudo nmcli connection add type gsm ifname "*" con-name "nbiot" apn "YOUR_APN_HERE"
+sudo nmcli connection modify "nbiot" connection.autoconnect yes
+sudo nmcli connection modify "nbiot" connection.autoconnect-priority 1
+```
+
+### Update settings.py
+In `config/settings.py`, update:
+```python
+NBIOT_ENABLED = True
+NBIOT_PORT = "/dev/ttyUSB0"  # or /dev/ttyAMA0
+NBIOT_BAUD = 115200
+NBIOT_APN = "your.apn.here"
+```
+
+### Update transmit.py
+The `src/transmit.py` file already has NB-IoT stubs. When your module arrives:
+1. Update the `_send_nbiot()` method with your module's AT command sequence
+2. Set `TRANSMISSION_MODE = "auto"` in settings.py to auto-detect the best connection
+3. The system will automatically fall back to NB-IoT when WiFi is unavailable
+
+### Data Transmission Protocol
+For NB-IoT, prefer lightweight protocols:
+- **CoAP** (Constrained Application Protocol) — lowest overhead
+- **MQTT-SN** — MQTT optimized for constrained networks
+- **HTTP POST** — works but higher overhead
+
+### Testing in the Field
+```bash
+# Check active connection type
+nmcli -t -f TYPE,STATE connection show --active
+
+# Test connectivity
+ping -c 3 8.8.8.8
+
+# Run system in NB-IoT mode
+python3 src/main.py
+```
