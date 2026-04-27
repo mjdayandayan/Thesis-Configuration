@@ -15,7 +15,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from config.settings import (
     LOG_INTERVAL_SECONDS, DATA_DIR, LOG_DIR,
     TEMP_MIN, TEMP_MAX, HUMIDITY_MIN, HUMIDITY_MAX,
-    SOIL_MOISTURE_MIN, SOIL_SENSOR_MODE, MODEL_PATH
+    SOIL_MOISTURE_MIN, SOIL_SENSOR_MODE, MODEL_PATH,
+    SAVE_RETRAINING_FRAMES, RETRAINING_DIR, RETRAINING_INTERVAL
 )
 from src.sensors import DHTSensor, get_soil_sensor
 from src.camera import Camera
@@ -32,6 +33,24 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+# Counter for retraining frame capture
+_capture_count = 0
+
+
+def save_retraining_frame(frame):
+    """Save raw camera frame for future Edge Impulse retraining uploads."""
+    global _capture_count
+    _capture_count += 1
+    if _capture_count % RETRAINING_INTERVAL != 0:
+        return None
+    os.makedirs(RETRAINING_DIR, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filepath = os.path.join(RETRAINING_DIR, f"field_{timestamp}.jpg")
+    import cv2
+    cv2.imwrite(filepath, frame)
+    logger.info(f"Saved retraining frame: {filepath}")
+    return filepath
 
 
 def check_alerts(data):
@@ -98,12 +117,18 @@ def run_once(dht, soil, camera, model, transmitter):
         img_path = camera.save_frame(frame)
         data['image_path'] = img_path
 
+        # Save raw frames for future model retraining
+        if SAVE_RETRAINING_FRAMES:
+            save_retraining_frame(frame)
+
         if model is not None:
             try:
                 result = model.classify(frame)
                 label, confidence = model.get_top_prediction(result)
+                detections = model.get_all_detections(result)
                 data['prediction'] = {'label': label, 'confidence': round(confidence, 4)}
-                logger.info(f"Inference: {label} ({confidence:.2%})")
+                data['detections'] = detections
+                logger.info(f"Inference: {label} ({confidence:.2%}) — {len(detections)} detection(s)")
             except Exception as e:
                 logger.error(f"Inference error: {e}")
     else:

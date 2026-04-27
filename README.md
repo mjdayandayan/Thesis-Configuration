@@ -22,7 +22,7 @@ Step-by-step guide to configure a **Raspberry Pi 5** for the thesis:
 | Component | Details |
 |---|---|
 | **Board** | Raspberry Pi 5 (headless, 64-bit OS) |
-| **Computer Vision** | Edge Impulse model (`.eim`, Linux AARCH64) for rice paddy health/disease detection |
+| **Computer Vision** | Edge Impulse FOMO model (`.eim`, Linux AARCH64) — interim deployment (F1 46.1%), will retrain after hardware integration |
 | **Camera** | USB Webcam (`/dev/video0`) |
 | **Temp / Humidity** | DHT22 sensor on GPIO4 |
 | **Soil Moisture** | Digital output (DO) pin on GPIO17 — no ADC needed for now |
@@ -141,6 +141,7 @@ When the **SIM7080G** module and **GOMO CAT-M1 SIM** arrive:
 │   └── settings.py                  # All configuration in one place
 ├── logs/                            # Runtime logs
 ├── data/                            # Saved sensor data and images
+│   └── retraining_frames/           # Raw frames for Edge Impulse retraining
 └── requirements.txt                 # Python dependencies
 ```
 
@@ -164,6 +165,8 @@ When the **SIM7080G** module and **GOMO CAT-M1 SIM** arrive:
 ---
 
 ## Current Setup Mode
+- **Edge Impulse Model**: Interim FOMO MobileNetV2 0.35 (F1 46.1%) — deployed for hardware integration testing
+- **Retraining Plan**: The system automatically saves camera frames from the Pi to `~/thesis/data/retraining_frames/`. Upload these to Edge Impulse as new training data, then retrain with improved settings (FOMO MobileNetV2 0.1, 416×416 input, learned optimizer, 150 cycles, LR 0.001). Swap the new `.eim` file — no code changes needed.
 - **Soil Moisture**: Using **digital output (DO)** pin → GPIO reads HIGH/LOW (no ADC needed)
 - When ADC module arrives, change `SOIL_SENSOR_MODE = "analog"` in `config/settings.py`
 - **NB-IoT**: Stubs ready in code. Activate when SIM7080G + GOMO SIM arrive

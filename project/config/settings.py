@@ -28,14 +28,29 @@ SOIL_WET = 8000    # ADC value in water (calibrate with Step 7)
 # =============================================================
 
 CAMERA_INDEX = 0       # Usually 0 for first USB webcam
-CAMERA_WIDTH = 640
+CAMERA_WIDTH = 640     # Higher res = better retraining frames
 CAMERA_HEIGHT = 480
 
 # =============================================================
 # EDGE IMPULSE MODEL
 # =============================================================
 
+# Current model: FOMO MobileNetV2 0.35 (interim, F1 46.1%)
+# Will be replaced after retraining with improved settings.
+# When you retrain, just swap the .eim file — no code changes needed.
 MODEL_PATH = "/home/pi/thesis/models/your-model.eim"
+CONFIDENCE_THRESHOLD = 0.6  # Ignore predictions below this confidence
+
+# =============================================================
+# RETRAINING DATA CAPTURE
+# =============================================================
+
+# Save raw camera frames for uploading to Edge Impulse later.
+# These frames from the real deployment camera will significantly
+# improve model accuracy when used as additional training data.
+SAVE_RETRAINING_FRAMES = True
+RETRAINING_DIR = "/home/pi/thesis/data/retraining_frames"
+RETRAINING_INTERVAL = 10  # Save every Nth capture (1 = every, 10 = every 10th)
 
 # =============================================================
 # DATA LOGGING

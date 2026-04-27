@@ -1,5 +1,9 @@
 ## STEP 6: DEPLOY MODEL AND TEST
 
+> **Note:** You are deploying the interim FOMO model (F1 46.1%) to validate the
+> full hardware pipeline. The system will automatically save camera frames from
+> the Pi for retraining later. When you retrain, just swap the `.eim` file.
+
 ### Copy the Edge Impulse Model
 1. In your **Edge Impulse** project, go to **Deployment**
 2. Select **Linux (AARCH64)** — this is for Raspberry Pi 5
@@ -144,5 +148,37 @@ Stop the service (for development):
 ```bash
 sudo systemctl stop thesis.service
 ```
+
+### Retraining Workflow (Do This Later)
+
+After the hardware pipeline is validated and you've collected field frames:
+
+1. **Copy retraining frames from the Pi to your laptop:**
+   ```bash
+   scp -r pi@trio.local:~/thesis/data/retraining_frames/ ~/Downloads/retraining_frames/
+   ```
+
+2. **Upload to Edge Impulse:**
+   Go to **Data acquisition → Upload data** and upload the frames from `retraining_frames/`.
+
+3. **Label the new images** in Edge Impulse's labeling tool.
+
+4. **Retrain with improved settings:**
+   - Model: FOMO (MobileNetV2 0.1)
+   - Input: 416×416, resize mode **Squash**
+   - Learned optimizer: **ON**
+   - Training cycles: **150**
+   - Learning rate: **0.001**
+   - Data augmentation: **ON**
+
+5. **Deploy the new model:**
+   ```bash
+   scp ~/Downloads/new-model.eim pi@trio.local:~/thesis/models/
+   ssh pi@trio.local "chmod +x ~/thesis/models/new-model.eim"
+   ```
+   Update `MODEL_PATH` in `config/settings.py` and restart the service:
+   ```bash
+   sudo systemctl restart thesis.service
+   ```
 
 
