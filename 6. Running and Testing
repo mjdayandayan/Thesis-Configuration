@@ -1,63 +1,128 @@
-## STEP 6: DEPLOY MODEL AND TEST
+## STEP 6: DEPLOYING THE AI MODEL AND TESTING EVERYTHING
 
-> **Note:** You are deploying the interim FOMO model (F1 46.1%) to validate the
-> full hardware pipeline. The system will automatically save camera frames from
-> the Pi for retraining later. When you retrain, just swap the `.eim` file.
+> **What you'll do:** Download the AI model from Edge Impulse, copy it to the Pi, and then test each part of the system individually (soil sensor, camera, AI model). Finally, run the full system.
 
-### Copy the Edge Impulse Model
-1. In your **Edge Impulse** project, go to **Deployment**
-2. Select **Linux (AARCH64)** — this is for Raspberry Pi 5
-3. Build and download the `.eim` file
-4. From your laptop's terminal, copy it to the Pi:
+> **What you need for this step:**
+> - VS Code connected to the Pi (from Step 5), or SSH access
+> - The Pi with all hardware connected (from Step 3)
+> - The 12V power supply turned on (for the soil sensor)
+> - Your Edge Impulse account (to download the model)
+
+---
+
+### Part A: Download and Deploy the AI Model
+
+> **What is the .eim file?** It's the AI model file trained on Edge Impulse, compiled specifically to run on the Raspberry Pi. The `.eim` stands for "Edge Impulse Model."
+
+#### On your laptop:
+
+1. **Go to your Edge Impulse project** in a web browser: https://studio.edgeimpulse.com/
+
+2. **Click "Deployment"** in the left sidebar
+
+3. **Search for** or select **"Linux (AARCH64)"**
+   - AARCH64 is the processor type of the Raspberry Pi 5
+   - ⚠️ Do NOT choose "Linux (x86)" — that's for regular PCs, not the Pi
+
+4. Click **"Build"** and wait for it to compile
+
+5. **Download** the `.eim` file (it will save to your Downloads folder)
+
+#### Copy the model to the Pi:
+
+6. **Open a terminal on your laptop** (not VS Code's terminal) and run:
    ```
    scp ~/Downloads/your-model-name.eim pi@trio.local:~/thesis/models/
    ```
-5. Update `config/settings.py` with the correct filename:
-   ```python
-   MODEL_PATH = "/home/pi/thesis/models/your-model-name.eim"
+   Replace `your-model-name.eim` with the actual filename you downloaded.
+
+   > **On Windows**, the path might be:
+   > ```
+   > scp C:\Users\YourName\Downloads\your-model-name.eim pi@trio.local:~/thesis/models/
+   > ```
+
+   Enter the password (`raspberrypi`) when prompted.
+
+#### Make the model executable:
+
+7. **SSH into the Pi** (or use VS Code's terminal):
+   ```
+   ssh pi@trio.local
    ```
 
-### Make the Model Executable
-```bash
-ssh pi@trio.local
-chmod +x ~/thesis/models/your-model-name.eim
-```
+8. **Make the model file executable:**
+   ```
+   chmod +x ~/thesis/models/your-model-name.eim
+   ```
 
-### Test Individual Components
-SSH into the Pi and activate the virtual environment:
+   > **What does `chmod +x` do?** It gives the file "execute permission" — the system needs this to be able to run the model. Without it, you'll get a "Permission denied" error.
+
+9. **Update the settings file** with the correct model filename:
+   - Open `config/settings.py` in VS Code (or use `nano`):
+     ```
+     nano ~/thesis/config/settings.py
+     ```
+   - Find the line that says `MODEL_PATH` and change it to your model's filename:
+     ```python
+     MODEL_PATH = "/home/pi/thesis/models/your-model-name.eim"
+     ```
+   - Save and exit (in nano: press `Ctrl+O`, Enter, then `Ctrl+X`)
+
+---
+
+### Part B: Test Each Component Individually
+
+> **Why test individually?** If the full system doesn't work, testing each part separately helps you figure out exactly which part has a problem.
+
+First, make sure you're in the project directory with the virtual environment activated:
 ```bash
 cd ~/thesis
 source venv/bin/activate
 ```
 
-**Test DHT22 sensor:**
+> **Remember:** You should see `(venv)` at the beginning of the prompt. If you don't, run the `source` command above.
+
+---
+
+#### Test 1: RS485 Soil Sensor
+
+> Make sure the 12V power supply is turned on before running this test.
+
 ```bash
 python3 -c "
-from src.sensors import DHTSensor
-sensor = DHTSensor()
+from src.sensors import SoilSensorRS485
+sensor = SoilSensorRS485()
 result = sensor.read()
 if result:
-    print(f'Temperature: {result[\"temperature\"]}°C')
-    print(f'Humidity: {result[\"humidity\"]}%')
+    print(f'Soil Moisture:  {result[\"soil_moisture\"]}%')
+    print(f'Soil Temp:      {result[\"soil_temperature\"]}°C')
+    print(f'EC:             {result[\"ec\"]} µS/cm')
+    print(f'pH:             {result[\"ph\"]}')
+    print(f'Soil Humidity:  {result[\"soil_humidity\"]}%')
 else:
-    print('Failed to read DHT22 — check wiring')
+    print('Failed to read RS485 sensor — check wiring and USB-to-RS485 adapter')
 sensor.cleanup()
 "
 ```
 
-**Test soil moisture sensor (digital mode):**
-```bash
-python3 -c "
-from src.sensors import SoilMoistureSensor
-sensor = SoilMoistureSensor()
-result = sensor.read()
-print(f'Soil is: {result[\"status\"]}')
-print(f'Digital pin value: {result[\"digital_value\"]}')
-sensor.cleanup()
-"
-```
+> **What you should see** (values will vary based on your soil):
+> ```
+> Soil Moisture:  45.2%
+> Soil Temp:      26.3°C
+> EC:             512 µS/cm
+> pH:             6.2
+> Soil Humidity:  62.1%
+> ```
+>
+> **If you see "Failed to read":**
+> - Check that the 12V power supply is turned on
+> - Check that Brown → A+ and Blue → B- wiring is correct (try swapping them)
+> - Run `ls /dev/ttyUSB*` — if it shows `ttyUSB1` instead of `ttyUSB0`, update `RS485_PORT` in `config/settings.py`
 
-**Test USB webcam:**
+---
+
+#### Test 2: USB Webcam
+
 ```bash
 python3 -c "
 from src.camera import Camera
@@ -73,7 +138,24 @@ cam.release()
 "
 ```
 
-**Test Edge Impulse inference (after model is deployed):**
+> **What you should see:**
+> ```
+> Captured frame: (480, 640, 3)
+> Saved test image to data/test_capture.jpg
+> ```
+> The numbers may vary — `(480, 640, 3)` means a 640×480 pixel color image.
+>
+> **If you see "Failed to capture":**
+> - Unplug and re-plug the webcam
+> - Run `v4l2-ctl --list-devices` to check if the Pi sees it
+> - Try changing `CAMERA_INDEX` in `config/settings.py` from `0` to `1`
+
+---
+
+#### Test 3: AI Model Inference
+
+> This test only works after you've deployed the `.eim` model file (Part A above).
+
 ```bash
 python3 -c "
 from src.inference import ModelInference
@@ -88,97 +170,139 @@ cam.release()
 "
 ```
 
-### Run the Full System
+> **What you should see:** A list of detected objects or classes with confidence scores. The exact output depends on what's in front of the camera.
+>
+> **If you see an error about the model file:**
+> - Check that the `MODEL_PATH` in `config/settings.py` matches the actual filename
+> - Check that you ran `chmod +x` on the model file
+> - Make sure the file is in the `~/thesis/models/` directory
 
-**Single reading (for testing):**
+---
+
+### Part C: Run the Full System
+
+Now that each component works individually, run the complete system:
+
+#### Single Reading (Quick Test)
 ```bash
 python3 src/main.py --once
 ```
 
-**Continuous monitoring:**
+> This takes one reading from all sensors, runs the AI model once, and prints the results. Use this to verify the full pipeline works.
+
+#### Continuous Monitoring
 ```bash
 python3 src/main.py
 ```
-Press `Ctrl+C` to stop.
 
-### Run as a Service (Auto-Start on Boot)
-Create a systemd service so the monitoring starts automatically:
+> This runs continuously — it takes readings at regular intervals (configured in `config/settings.py`). Press `Ctrl+C` to stop it.
 
-```bash
-sudo tee /etc/systemd/system/thesis.service << 'EOF'
-[Unit]
-Description=Rice Paddy Monitoring System
-After=network-online.target
-Wants=network-online.target
+---
 
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/home/pi/thesis
-Environment=PATH=/home/pi/thesis/venv/bin:/usr/bin:/usr/local/bin
-ExecStart=/home/pi/thesis/venv/bin/python /home/pi/thesis/src/main.py
-Restart=always
-RestartSec=10
-StandardOutput=journal
-StandardError=journal
+### Part D: Set Up Auto-Start on Boot (Optional)
 
-[Install]
-WantedBy=multi-user.target
-EOF
-```
+> **What does this do?** Creates a "service" that automatically starts the monitoring system whenever the Pi boots up. This means you don't have to SSH in and manually start the program every time.
 
-Enable and start:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable thesis.service
-sudo systemctl start thesis.service
-```
+1. **Create the service file:**
+   ```bash
+   sudo tee /etc/systemd/system/thesis.service << 'EOF'
+   [Unit]
+   Description=Rice Paddy Monitoring System
+   After=network-online.target
+   Wants=network-online.target
 
-Check status:
-```bash
-sudo systemctl status thesis.service
-```
+   [Service]
+   Type=simple
+   User=pi
+   WorkingDirectory=/home/pi/thesis
+   Environment=PATH=/home/pi/thesis/venv/bin:/usr/bin:/usr/local/bin
+   ExecStart=/home/pi/thesis/venv/bin/python /home/pi/thesis/src/main.py
+   Restart=always
+   RestartSec=10
+   StandardOutput=journal
+   StandardError=journal
 
-View live logs:
-```bash
-journalctl -u thesis.service -f
-```
+   [Install]
+   WantedBy=multi-user.target
+   EOF
+   ```
 
-Stop the service (for development):
-```bash
-sudo systemctl stop thesis.service
-```
+   > **What is a systemd service?** It's how Linux manages programs that run in the background. By creating a service, the Pi's operating system will start, stop, and restart our program automatically.
 
-### Retraining Workflow (Do This Later)
+2. **Enable and start the service:**
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable thesis.service
+   sudo systemctl start thesis.service
+   ```
 
-After the hardware pipeline is validated and you've collected field frames:
+   > **What do these commands do?**
+   > - `daemon-reload` = tells the system to read the new service file
+   > - `enable` = tells the system to start the service on every boot
+   > - `start` = starts the service right now
 
-1. **Copy retraining frames from the Pi to your laptop:**
+3. **Check if it's running:**
+   ```bash
+   sudo systemctl status thesis.service
+   ```
+
+   > **What you should see:** A green "active (running)" status.
+
+4. **View live logs** (to see what the system is doing):
+   ```bash
+   journalctl -u thesis.service -f
+   ```
+   Press `Ctrl+C` to stop watching the logs.
+
+5. **To stop the service** (e.g., for development/debugging):
+   ```bash
+   sudo systemctl stop thesis.service
+   ```
+
+---
+
+### Part E: Retraining the AI Model Later
+
+> **You don't need to do this now.** This is for after you've been running the system in the field and want to improve the AI model with real-world images.
+
+The system automatically saves camera frames to `~/thesis/data/retraining_frames/`. When you're ready to retrain:
+
+1. **Copy the saved frames to your laptop:**
    ```bash
    scp -r pi@trio.local:~/thesis/data/retraining_frames/ ~/Downloads/retraining_frames/
    ```
 
-2. **Upload to Edge Impulse:**
-   Go to **Data acquisition → Upload data** and upload the frames from `retraining_frames/`.
+2. **Upload to Edge Impulse:** Go to **Data acquisition → Upload data** and upload the frames
 
-3. **Label the new images** in Edge Impulse's labeling tool.
+3. **Label the new images** using Edge Impulse's labeling tool
 
-4. **Retrain with improved settings:**
+4. **Retrain** with these recommended settings:
    - Model: FOMO (MobileNetV2 0.1)
-   - Input: 416×416, resize mode **Squash**
-   - Learned optimizer: **ON**
-   - Training cycles: **150**
-   - Learning rate: **0.001**
-   - Data augmentation: **ON**
+   - Input size: 416×416, resize mode: Squash
+   - Training cycles: 150
+   - Learning rate: 0.001
+   - Data augmentation: ON
 
-5. **Deploy the new model:**
+5. **Deploy the new model** (repeat Part A of this step):
    ```bash
    scp ~/Downloads/new-model.eim pi@trio.local:~/thesis/models/
    ssh pi@trio.local "chmod +x ~/thesis/models/new-model.eim"
    ```
-   Update `MODEL_PATH` in `config/settings.py` and restart the service:
+   Update `MODEL_PATH` in `config/settings.py`, then restart:
    ```bash
    sudo systemctl restart thesis.service
    ```
+
+---
+
+### ✅ Checkpoint
+
+You've now:
+- ✅ Deployed the AI model to the Pi
+- ✅ Tested the soil sensor individually
+- ✅ Tested the webcam individually
+- ✅ Tested the AI model individually
+- ✅ Ran the full system
+- ✅ (Optional) Set up auto-start on boot
 
 

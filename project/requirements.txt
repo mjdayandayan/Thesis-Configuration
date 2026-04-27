@@ -1,9 +1,9 @@
 # Rice Paddy Monitoring System - Python Dependencies
 # Install with: pip install -r requirements.txt
 
-# Sensor libraries
-adafruit-circuitpython-dht
-RPi.GPIO
+# RS485 5-in-1 soil sensor (Modbus RTU)
+minimalmodbus
+pyserial
 
 # Camera and computer vision
 opencv-python-headless
@@ -20,8 +20,4 @@ requests
 # Web dashboard (optional)
 # flask
 
-# Future: Analog soil moisture via ADS1115
-# adafruit-circuitpython-ads1x15
 
-# Future: NB-IoT serial communication
-# pyserial

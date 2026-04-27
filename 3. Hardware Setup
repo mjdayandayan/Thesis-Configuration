@@ -1,82 +1,140 @@
-## STEP 3: HARDWARE WIRING
+## STEP 3: CONNECTING THE HARDWARE
 
-### CURRENT SETUP (Digital Soil Moisture — No ADC needed)
+> **What you'll do:** Plug in the USB webcam and wire the RS485 soil sensor to the Raspberry Pi. Then verify the Pi can see the camera.
+
+> **What you need for this step:**
+> - Raspberry Pi 5 (powered **OFF** — unplug the power cable before wiring)
+> - USB Web Camera A4Tech
+> - RS485 5-in-1 Soil Sensor (with its cable)
+> - USB-to-RS485 Adapter
+> - 12V DC Power Supply (for the soil sensor)
+> - Jumper wires (if needed for screw terminal connections)
+
+> ⚠️ **Safety:** Always unplug the Pi's power before connecting or disconnecting hardware. Plugging wires into a powered device can damage it.
+
+---
+
+### Part A: Plug in the USB Webcam (Easy)
+
+1. **Plug the A4Tech USB webcam** into any USB port on the Raspberry Pi
+   - That's it! The webcam is plug-and-play — no wiring needed
+
+---
+
+### Part B: Connect the RS485 Soil Sensor (Requires Wiring)
+
+> **What is the RS485 sensor?** It's a soil sensor that measures 5 things at once: soil moisture, soil temperature, soil humidity, pH (acidity), and EC (electrical conductivity). It communicates using a protocol called "RS485" — the Pi can't read RS485 directly, so we need a **USB-to-RS485 adapter** as a translator.
+
+> **What is the USB-to-RS485 adapter?** A small device that plugs into the Pi's USB port on one end and has screw terminals on the other end. You connect the sensor's wires to these screw terminals.
+
+The sensor has a cable with **5 colored wires**. Here's where each one goes:
+
+#### Wiring Table
+
+| Wire Color | What It Does | Where to Connect It |
+|---|---|---|
+| 🟤 **Brown** | Data signal (A+) | USB-to-RS485 adapter → **A+** screw terminal |
+| 🔵 **Blue** | Data signal (B-) | USB-to-RS485 adapter → **B-** screw terminal |
+| 🔴 **Red** | Power positive (+) | 12V power supply → **positive (+)** terminal |
+| ⚫ **Black** | Power negative (GND) | 12V power supply → **negative (-)** terminal |
+| 🟡 **Yellow** | Shield/Ground | Optional — connect to GND for less interference, or leave disconnected |
+
+> ⚠️ **Check your sensor's datasheet!** Wire colors may vary between manufacturers. The table above is the most common, but verify with the label or manual that came with your sensor.
+
+#### Step-by-Step Wiring
+
+2. **USB-to-RS485 Adapter:**
+   - Look at the adapter — it has 2 or 3 screw terminals labeled **A+**, **B-**, and sometimes **GND**
+   - Use a small screwdriver to loosen the screw terminal
+   - Insert the **Brown wire** into the **A+** terminal and tighten the screw
+   - Insert the **Blue wire** into the **B-** terminal and tighten the screw
+
+3. **Plug the USB-to-RS485 adapter** into a USB port on the Pi
+   - Use a **different** USB port from the webcam
+
+4. **12V Power Supply for the sensor:**
+   - Connect the **Red wire** to the **positive (+)** terminal of the 12V power supply
+   - Connect the **Black wire** to the **negative (-)** terminal of the 12V power supply
+   - ⚠️ **Do NOT power the sensor from the Pi's GPIO pins!** The sensor needs 12V — the Pi only provides 3.3V or 5V. Connecting it directly to the Pi will not work and could cause damage.
+
+5. **Plug in the 12V power supply** (but don't turn it on yet — we'll test everything in Step 6)
+
+---
+
+#### Wiring Diagram
+
 ```
-┌───────────────────────────────────────────────────────────────────┐
-│                        RASPBERRY PI 5                             │
-│                                                                   │
-│  USB Port ←────── USB Webcam                                     │
-│                                                                   │
-│  GPIO Pinout:                                                     │
-│  ┌───────────────────────────────────────────┐                   │
-│  │                                           │                   │
-│  │  DHT22 Temperature/Humidity Sensor:       │                   │
-│  │  ┌────────────────────────────────────┐   │                   │
-│  │  │ 3.3V  (Pin 1)  ──→ DHT22 VCC (+)  │   │                   │
-│  │  │ GPIO4 (Pin 7)  ──→ DHT22 DATA     │   │                   │
-│  │  │ GND   (Pin 9)  ──→ DHT22 GND (-)  │   │                   │
-│  │  └────────────────────────────────────┘   │                   │
-│  │                                           │                   │
-│  │  Soil Moisture Sensor (DIGITAL mode):     │                   │
-│  │  ┌────────────────────────────────────┐   │                   │
-│  │  │ 3.3V  (Pin 17) ──→ Sensor VCC     │   │                   │
-│  │  │ GND   (Pin 20) ──→ Sensor GND     │   │                   │
-│  │  │ GPIO17(Pin 11) ──→ Sensor DO (*)  │   │                   │
-│  │  └────────────────────────────────────┘   │                   │
-│  │  (*) DO = Digital Output pin on the       │                   │
-│  │      soil moisture sensor module          │                   │
-│  │  NOTE: The analog (AO) pin is NOT used    │                   │
-│  │        until you have the ADS1115 ADC     │                   │
-│  │                                           │                   │
-│  └───────────────────────────────────────────┘                   │
-│                                                                   │
-│  FUTURE SETUP (when ADS1115 ADC arrives):                        │
-│  ┌───────────────────────────────────────────┐                   │
-│  │ 3.3V  (Pin 17) ──→ ADS1115 VDD           │                   │
-│  │ GND   (Pin 20) ──→ ADS1115 GND           │                   │
-│  │ SDA   (Pin 3)  ──→ ADS1115 SDA           │                   │
-│  │ SCL   (Pin 5)  ──→ ADS1115 SCL           │                   │
-│  │ ADS1115 A0     ←── Soil Sensor AO (analog)│                  │
-│  └───────────────────────────────────────────┘                   │
-└───────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    RASPBERRY PI 5                        │
+│                                                         │
+│   USB Port 1 ←── USB Web Camera A4Tech                  │
+│   USB Port 2 ←── USB-to-RS485 Adapter                  │
+│                    │                                    │
+└────────────────────│────────────────────────────────────┘
+                     │
+        ┌────────────┴────────────┐
+        │   USB-to-RS485 Adapter  │
+        │                         │
+        │   A+ ←── Brown wire ──┐ │
+        │   B- ←── Blue wire  ──┤ │       RS485 Soil Sensor
+        └─────────────────────────┘       (buried in soil)
+                                  │
+        ┌─────────────────────────┤
+        │   12V Power Supply      │
+        │                         │
+        │   (+) ←── Red wire   ──┤
+        │   (-) ←── Black wire ──┘
+        └─────────────────────────┘
 ```
 
-### Soil Moisture Sensor Module Pinout
-Most soil moisture sensor modules have 4 pins:
-- **VCC** → 3.3V power
-- **GND** → Ground
-- **DO** → Digital Output (HIGH = dry, LOW = wet) ← **USE THIS NOW**
-- **AO** → Analog Output (variable voltage) ← Use later with ADS1115
+---
 
-**Important**: The sensor module has a small **potentiometer** (blue trim pot).
-Turn it to adjust the wet/dry threshold for the digital output.
-- Clockwise = less sensitive (needs more water to trigger LOW)
-- Counter-clockwise = more sensitive (triggers LOW with less water)
+### Part C: Verify the Pi Can See the Devices
 
-### DHT22 Notes
-- Some DHT22 modules have a built-in pull-up resistor (3-pin module). If yours is the bare 4-pin component, add a **10kΩ pull-up resistor** between VCC and DATA.
-- The sensor requires at least **2 seconds** between reads.
+6. **Power on the Pi** (plug the USB-C power cable back in)
 
-## TEST USB WEBCAM
-After wiring, SSH into the Pi and check the camera:
-```
-sudo apt install -y v4l-utils
-v4l2-ctl --list-devices
-```
-The webcam should appear as `/dev/video0` or similar.
+7. **Wait 1–2 minutes**, then SSH into the Pi from your laptop:
+   ```
+   ssh pi@trio.local
+   ```
 
-## ENABLE I2C (for future ADS1115)
-This doesn't hurt to enable now:
-```
-sudo raspi-config
-```
-Navigate to **Interface Options → I2C → Enable**, then:
-```
-sudo reboot
-```
-After reboot, verify with:
-```
-sudo apt install -y i2c-tools
-i2cdetect -y 1
-```
-(You won't see any devices until the ADS1115 is connected)
+8. **Check if the A4Tech webcam is detected:**
+   ```
+   sudo apt install -y v4l-utils
+   v4l2-ctl --list-devices
+   ```
+
+   > **What you should see:** Something like:
+   > ```
+   > USB Web Camera A4Tech (usb-xxx):
+   >     /dev/video0
+   >     /dev/video1
+   > ```
+   > If you see `/dev/video0`, the camera is working.
+
+   > **If you see nothing or an error:** Unplug the webcam, wait 5 seconds, plug it back in, and run the command again.
+
+9. **Check if the USB-to-RS485 adapter is detected:**
+   ```
+   ls /dev/ttyUSB*
+   ```
+
+   > **What you should see:**
+   > ```
+   > /dev/ttyUSB0
+   > ```
+   > This means the adapter is connected. If it shows `/dev/ttyUSB1` instead, that's also fine — you'll just need to update the port in `config/settings.py` later.
+
+   > **If you see "No such file or directory":** The adapter isn't detected. Try a different USB port, or unplug and re-plug it.
+
+---
+
+### ✅ Checkpoint
+
+You've now:
+- ✅ Connected the A4Tech USB webcam to the Pi
+- ✅ Wired the RS485 soil sensor to the USB-to-RS485 adapter
+- ✅ Connected the sensor's power supply
+- ✅ Verified the Pi can see both the webcam (`/dev/video0`) and the adapter (`/dev/ttyUSB0`)
+
+> **Don't worry about testing the actual sensor readings yet** — we'll do that in Step 6 after installing the software.

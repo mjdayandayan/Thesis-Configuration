@@ -1,29 +1,108 @@
-## STEP 1: INITIAL RASPBERRY PI SETUP
+## STEP 1: SETTING UP THE RASPBERRY PI FOR THE FIRST TIME
 
-### Flash the SD Card
-1. Download **Raspberry Pi Imager** from https://www.raspberrypi.com/software/
-2. Connect the Micro SD card to your laptop using the SD card reader (minimum 32 GB)
-3. Open Raspberry Pi Imager
-4. **Device**: Select **Raspberry Pi 5**
-5. **OS**: Select **Raspberry Pi OS (64-bit)** — Debian Bookworm based
-6. **Storage**: Select your SD card (Generic MassStorageClass USB Drive)
-7. Click **Next**, then **Edit Settings**
+> **What you'll do:** Write the operating system (OS) to the SD card, pre-configure login credentials and WiFi, then boot the Raspberry Pi for the first time — all without connecting a monitor or keyboard.
 
-### OS Customization Settings
-8. **General Tab**:
-   - Hostname: `trio` (or your preferred hostname)
-   - Username: `pi`
-   - Password: `raspberrypi` (change this for production!)
-   - WiFi SSID and password: Enter your **current** WiFi credentials
-   - Locale: Set your timezone and keyboard layout
-9. **Services Tab**:
-   - **Enable SSH** ✓ (Use password authentication)
-10. Click **Save**, then **Yes** to apply settings
-11. Click **Yes** to confirm erasing the SD card — wait for write + verification to complete
+> **What you need for this step:**
+> - Your laptop
+> - The Micro SD card (32 GB or larger)
+> - The SD card reader
+> - Raspberry Pi Imager (downloaded from [raspberrypi.com/software](https://www.raspberrypi.com/software/))
+> - Your current WiFi name and password
 
-### First Boot
-12. Eject the SD card safely from your laptop
-13. Insert the SD card into the Raspberry Pi 5
-14. Connect power supply — the Pi will boot automatically
-15. **Wait 2-3 minutes** for the first boot (it will expand filesystem and apply settings)
-16. The Pi is now running headless — you'll access it via SSH from Step 2
+---
+
+### Part A: Install Raspberry Pi Imager
+
+1. On your **laptop**, go to https://www.raspberrypi.com/software/
+2. Download and install **Raspberry Pi Imager** for your operating system (Windows/Mac)
+3. Open Raspberry Pi Imager after installation
+
+---
+
+### Part B: Flash the Operating System to the SD Card
+
+> **What does "flash" mean?** It means writing the operating system onto the SD card so the Raspberry Pi can boot from it — like installing Windows on a new computer, but for the Pi.
+
+4. Insert the **Micro SD card** into the **SD card reader**, then plug the reader into your laptop
+
+5. In Raspberry Pi Imager, you'll see three buttons. Click them in order:
+
+   **5a. Choose Device:**
+   - Click **"Choose Device"**
+   - Select **Raspberry Pi 5**
+
+   **5b. Choose OS:**
+   - Click **"Choose OS"**
+   - Select **Raspberry Pi OS (64-bit)** — this should be the first/top option
+   - ⚠️ Make sure it says **64-bit**. Do NOT choose the 32-bit version.
+
+   **5c. Choose Storage:**
+   - Click **"Choose Storage"**
+   - Select your SD card (it will show something like "Generic MassStorageClass USB Drive" or similar)
+   - ⚠️ **Double-check** you selected the SD card, not your laptop's hard drive!
+
+6. Click **"Next"**
+
+---
+
+### Part C: Configure the Pi's Settings (IMPORTANT)
+
+> **Why do this now?** Since we're running the Pi without a monitor (headless), we need to pre-configure the username, password, WiFi, and SSH access now — otherwise we'll have no way to connect to it after it boots.
+
+7. A popup will ask **"Would you like to apply OS customisation settings?"** — click **"Edit Settings"**
+
+8. **In the "General" tab**, fill in the following:
+
+   | Setting | What to Enter | Explanation |
+   |---|---|---|
+   | **Set hostname** | `trio` | This is the Pi's name on the network. You'll use `trio.local` to connect to it. |
+   | **Set username and password** | Username: `pi`, Password: `raspberrypi` | These are the login credentials for the Pi. You'll need them every time you connect. |
+   | **Configure wireless LAN** | Your WiFi name and password | Enter the WiFi you're currently connected to. The Pi will connect to this WiFi when it boots. |
+   | **Set locale settings** | Your timezone and keyboard layout | Choose your correct timezone (e.g., Asia/Manila) |
+
+9. **Click the "Services" tab**:
+   - Check ✅ **"Enable SSH"**
+   - Select **"Use password authentication"**
+
+   > **What is SSH?** SSH (Secure Shell) lets you control the Pi remotely from your laptop's terminal — like a remote desktop, but text-based. This is how you'll run commands on the Pi without plugging in a monitor.
+
+10. Click **"Save"**
+
+11. Click **"Yes"** to apply the settings
+
+12. Click **"Yes"** to confirm erasing the SD card
+
+13. **Wait** for the write and verification to complete. This takes about 5–10 minutes.
+    - You'll see a progress bar. Don't unplug the SD card until it's done.
+    - When finished, you'll see **"Write Successful"**
+
+---
+
+### Part D: Boot the Raspberry Pi
+
+14. **Safely eject** the SD card from your laptop (use "Safely Remove Hardware" on Windows)
+
+15. **Insert the SD card** into the Raspberry Pi 5
+    - The SD card slot is on the bottom of the Pi
+    - Push it in gently until it clicks
+
+16. **Connect the USB-C power supply** to the Pi
+    - The Pi will boot automatically when power is connected
+    - You'll see a small green LED blinking — this means it's working
+
+17. **Wait 2–3 minutes**
+    - On the first boot, the Pi expands the filesystem and applies your settings
+    - It will also connect to the WiFi you configured in Step 8
+    - Don't unplug it during this time
+
+> **✅ Checkpoint:** The Pi is now running and connected to your WiFi. You can't see anything because there's no monitor — that's normal. In the next step, you'll connect to it from your laptop using SSH.
+
+---
+
+### What If Something Goes Wrong?
+
+| Problem | What To Do |
+|---|---|
+| Pi's green LED doesn't blink at all | The SD card might not be inserted properly, or the flash failed. Re-do Part B. |
+| Pi has a steady red LED only | Power supply issue. Make sure you're using a USB-C cable rated for 5V/5A. |
+| You made a typo in the WiFi password | You'll need to re-flash the SD card (start from Part B again) or connect the Pi to a monitor temporarily to fix it. |

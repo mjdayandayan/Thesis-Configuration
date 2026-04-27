@@ -1,172 +1,125 @@
-# Thesis-Configuration
+# Rice Monitoring System — Raspberry Pi 5 Setup Guide
 
-Step-by-step guide to configure a **Raspberry Pi 5** for the thesis:
-**"NB-IoT Enabled Rice Monitoring System Using Raspberry Pi V5 and Computer Vision"**
+> **Thesis:** "Rice Monitoring System Using Raspberry Pi V5 and Computer Vision"
 
----
-
-## Context / Original Prompt
-
-> My thesis involves rice paddy monitoring using Raspberry Pi 5, a USB web camera, a temperature and humidity sensor, and a soil moisture sensor. I used Edge Impulse to train my computer vision model.
->
-> - I already have a computer vision model
-> - I need to configure and code (especially the sensors) in VSCode
-> - I need to configure it where I don't have to start all over again whenever the WiFi/internet changes, especially since I'll have to integrate NB-IoT on it if my modules arrive.
-> - I'll be using digital pins for the soil moisture sensor as of now since I don't have an ADC module yet
-> - It's not sure yet, but I think I'll use SIM7080G NB-IoT and a GOMO card for CAT-M1 since PLDT haven't answered me for months in regards to their NB-IoT SIM card.
+This guide walks you through **everything** — from a fresh Raspberry Pi to a working rice paddy monitoring system. Each step is numbered and explained. Follow them **in order**.
 
 ---
 
-## Project Overview
+## What Does This System Do?
 
-| Component | Details |
-|---|---|
-| **Board** | Raspberry Pi 5 (headless, 64-bit OS) |
-| **Computer Vision** | Edge Impulse FOMO model (`.eim`, Linux AARCH64) — interim deployment (F1 46.1%), will retrain after hardware integration |
-| **Camera** | USB Webcam (`/dev/video0`) |
-| **Temp / Humidity** | DHT22 sensor on GPIO4 |
-| **Soil Moisture** | Digital output (DO) pin on GPIO17 — no ADC needed for now |
-| **Future ADC** | ADS1115 (16-bit, I2C) for analog soil moisture readings |
-| **Connectivity** | WiFi (primary) → NB-IoT via SIM7080G + GOMO CAT-M1 SIM (future, for field deployment) |
-| **Dev Workflow** | VS Code Remote-SSH into the Pi |
-| **Project Dir** | `~/thesis/` on the Pi |
+This system monitors rice paddies using:
 
-### Key Design Decisions
+1. **A USB webcam (A4Tech)** — takes photos of the rice field
+2. **A soil sensor** — measures 5 soil properties (moisture, temperature, humidity, pH, electrical conductivity)
+3. **A Raspberry Pi 5** — the small computer that runs everything, processes the photos with an AI model (Edge Impulse), and sends the data over WiFi
 
-1. **WiFi portability** — NetworkManager is pre-configured with every WiFi network you'll use (home, school, lab, hotspot). The Pi auto-connects to the highest-priority available network on boot. You never have to reconfigure when moving locations.
-
-2. **Digital soil moisture (no ADC)** — The soil moisture sensor module's DO (digital output) pin is connected directly to GPIO17. It reads HIGH (dry) or LOW (wet). The threshold is adjusted with the potentiometer on the sensor module. When the ADS1115 ADC arrives, change one setting in `config/settings.py` to switch to analog mode.
-
-3. **NB-IoT future-proofing** — The SIM7080G module (with GOMO CAT-M1 SIM) will be added as the lowest-priority network fallback. The code already has NB-IoT stubs in `src/transmit.py`. NetworkManager will handle automatic failover from WiFi → NB-IoT.
+The AI model identifies the growth stage of the rice (booting, flowering, maturing, vegetative) and detects weed growth from camera images.
 
 ---
 
-## Materials Needed
+## What You Need Before Starting
 
-### Hardware
-1. Laptop (for development)
-2. Raspberry Pi 5
-3. USB-C Power Supply (5V 5A recommended)
-4. Micro SD Card (minimum 32 GB)
-5. SD Card Reader
-6. USB Web Camera
-7. DHT22 Temperature and Humidity Sensor
-8. Soil Moisture Sensor Module (with digital output pin)
-9. Jumper Wires
-10. *(Future)* ADS1115 ADC Module (16-bit, I2C) — for analog soil moisture
-11. *(Future)* SIM7080G NB-IoT Module + GOMO CAT-M1 SIM
+### Hardware (physical items)
 
-### Software
-1. [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
-2. Command Prompt / PowerShell
-3. [Visual Studio Code](https://code.visualstudio.com/) with Remote-SSH extension
-4. [Edge Impulse](https://www.edgeimpulse.com/) account (model already trained)
+| # | Item | What It's For |
+|---|---|---|
+| 1 | **Laptop or Desktop PC** | You'll use this to set up and control the Pi remotely |
+| 2 | **Raspberry Pi 5** | The small computer that runs the monitoring system |
+| 3 | **USB-C Power Supply** (5V 5A) | Powers the Raspberry Pi |
+| 4 | **Micro SD Card** (32 GB or larger) | Storage for the Pi's operating system and your project |
+| 5 | **SD Card Reader** | Plugs into your laptop so you can write the OS to the SD card |
+| 6 | **USB Web Camera (A4Tech)** | Takes photos of the rice field |
+| 7 | **RS485 5-in-1 Soil Sensor** | Measures pH, temperature, humidity, EC, and moisture of the soil |
+| 8 | **USB-to-RS485 Adapter** | Connects the soil sensor to the Pi (the Pi can't read RS485 directly) |
+| 9 | **12V DC Power Supply** | Powers the soil sensor (it needs more power than the Pi can provide) |
+| 10 | **Jumper Wires** | For connecting wires between components |
 
----
+### Software (download these to your laptop)
 
-## Configuration Steps
+| # | Software | Download Link | What It's For |
+|---|---|---|---|
+| 1 | **Raspberry Pi Imager** | [raspberrypi.com/software](https://www.raspberrypi.com/software/) | Writes the operating system to the SD card |
+| 2 | **Visual Studio Code (VS Code)** | [code.visualstudio.com](https://code.visualstudio.com/) | Code editor — you'll use it to edit files on the Pi remotely |
+| 3 | **Edge Impulse account** | [edgeimpulse.com](https://www.edgeimpulse.com/) | Where the AI model is trained (already done) |
 
-Follow the numbered files in this repository **in order**:
-
-### Step 1 — Raspberry Pi Configuration
-Flash Raspberry Pi OS (64-bit) to the SD card using Raspberry Pi Imager. Set hostname (`trio`), username/password (`pi`/`raspberrypi`), WiFi credentials, and enable SSH. Insert the SD card and boot the Pi headless.
-
-### Step 2 — Command Prompt Configuration
-SSH into the Pi (`ssh pi@trio.local`). Run system updates. **Configure multiple WiFi networks** using `nmcli` so the Pi auto-connects wherever you take it — home, school, lab, or mobile hotspot. Set priorities so the preferred network is used first. Create a reference file for future NB-IoT integration.
-
-### Step 3 — Hardware Setup
-Wire the components:
-- **DHT22**: 3.3V (Pin 1) → VCC, GPIO4 (Pin 7) → DATA, GND (Pin 9) → GND
-- **Soil Moisture (digital)**: 3.3V (Pin 17) → VCC, GND (Pin 20) → GND, GPIO17 (Pin 11) → DO
-- **USB Webcam**: Plug into any USB port
-- **Future ADS1115**: SDA (Pin 3), SCL (Pin 5), 3.3V, GND → ADS1115; AO from soil sensor → A0
-
-Enable I2C via `raspi-config` (for future ADC). Test the webcam with `v4l2-ctl --list-devices`.
-
-### Step 4 — Development Environment Setup
-Create the project directory (`~/thesis/`), set up a Python virtual environment, and install all dependencies:
-- `adafruit-circuitpython-dht` — DHT22 sensor
-- `RPi.GPIO` — digital GPIO for soil moisture
-- `opencv-python-headless` — camera/image processing
-- `edge_impulse_linux` — model inference
-- `paho-mqtt`, `requests` — data transmission
-
-Create the project folder structure: `src/`, `config/`, `models/`, `logs/`, `data/`.
-
-### Step 5 — VSCode Configuration
-Install the **Remote-SSH** extension in VS Code. Connect to `pi@trio.local`, open `/home/pi/thesis`, and select the venv Python interpreter. Deploy project files from the `project/` folder in this repo (via SCP or direct copy). If WiFi changes and you lose connection, just reconnect — the Pi auto-connects to saved networks and all files are preserved.
-
-### Step 6 — Running and Testing
-Download the Edge Impulse model (Linux AARCH64 `.eim`) and copy it to `~/thesis/models/`. Make it executable. Test each component individually:
-- DHT22 sensor readings
-- Soil moisture digital output
-- Camera frame capture
-- Edge Impulse inference
-
-Run the full system: `python3 src/main.py --once` (single reading) or `python3 src/main.py` (continuous). Optionally set up a `systemd` service for auto-start on boot.
-
-### Step 7 — Sensor Calibration
-**Soil moisture (digital mode):** Adjust the potentiometer on the sensor module until it reliably switches between wet/dry at your desired threshold. Run the calibration test script to verify.
-
-**DHT22:** No calibration needed — just verify readings are reasonable.
-
-**Future analog calibration:** When ADS1115 arrives, run the calibration script to record raw ADC values for dry air and water, then update `config/settings.py`.
-
-### Step 8 — NB-IoT Integration (Future)
-When the **SIM7080G** module and **GOMO CAT-M1 SIM** arrive:
-1. Connect via USB (appears as `/dev/ttyUSB0`) or UART
-2. Install `pyserial`, test AT commands
-3. Add NB-IoT as the lowest-priority network via `nmcli`
-4. Update `config/settings.py` with NB-IoT settings
-5. Update `src/transmit.py` with SIM7080G AT command sequences
-6. The system auto-falls back to NB-IoT when WiFi is unavailable
+> **Tip:** You do NOT need a monitor, keyboard, or mouse for the Raspberry Pi. Everything is done remotely from your laptop. This is called **"headless"** mode.
 
 ---
 
-## Project Structure (on the Pi)
+## Steps Overview
+
+Follow the numbered files in this repository **in order**. Do NOT skip steps.
+
+| Step | File | What You'll Do | Time |
+|---|---|---|---|
+| **1** | `1. Raspberry Pi Configuration` | Write the operating system to the SD card and boot the Pi for the first time | ~15 min |
+| **2** | `2. Command Prompt Configuration` | Connect to the Pi from your laptop, update it, and set up WiFi networks | ~20 min |
+| **3** | `3. Hardware Setup` | Plug in the webcam and wire the soil sensor | ~15 min |
+| **4** | `4. Development Environment Setup` | Install all the software the project needs on the Pi | ~10 min |
+| **5** | `5. VSCode Configuration` | Set up VS Code on your laptop to edit code on the Pi remotely | ~10 min |
+| **6** | `6. Running and Testing` | Deploy the AI model, test each component, run the full system | ~30 min |
+| **7** | `7. Sensor Calibration` | Verify the soil sensor is giving correct readings | ~10 min |
+
+---
+
+## Project Structure (What's on the Pi)
+
+After setup, the project folder on the Pi (`~/thesis/`) looks like this:
 
 ```
 ~/thesis/
-├── venv/                            # Python virtual environment
+├── setup.sh                         # One-command setup script (Step 4)
+├── requirements.txt                 # List of Python packages to install
+├── venv/                            # Python virtual environment (auto-created)
 ├── models/
-│   └── your-edge-impulse-model.eim  # Edge Impulse model file
+│   └── your-model.eim               # The AI model file from Edge Impulse
 ├── src/
-│   ├── __init__.py
-│   ├── sensors.py                   # DHT22 + soil moisture (digital/analog)
-│   ├── camera.py                    # USB webcam capture
-│   ├── inference.py                 # Edge Impulse model inference
-│   ├── transmit.py                  # Data transmission (WiFi/NB-IoT)
-│   └── main.py                      # Main monitoring loop
+│   ├── __init__.py                  # (required by Python — don't delete)
+│   ├── sensors.py                   # Code that reads the RS485 soil sensor
+│   ├── camera.py                    # Code that captures webcam photos
+│   ├── inference.py                 # Code that runs the AI model on photos
+│   ├── transmit.py                  # Code that sends data over WiFi
+│   └── main.py                      # The main program that ties everything together
 ├── config/
-│   └── settings.py                  # All configuration in one place
-├── logs/                            # Runtime logs
-├── data/                            # Saved sensor data and images
-│   └── retraining_frames/           # Raw frames for Edge Impulse retraining
-└── requirements.txt                 # Python dependencies
+│   └── settings.py                  # All settings in one place (sensor ports, thresholds, etc.)
+├── logs/                            # System logs (created automatically)
+└── data/                            # Saved sensor data and captured images
+    └── retraining_frames/           # Photos saved for retraining the AI model later
 ```
 
+> **You don't need to create this manually.** The setup script (`setup.sh`) in Step 4 creates all these folders for you.
+
 ---
 
-## Quick Reference
+## Quick Reference (Cheat Sheet)
 
-| Task | Command |
+Once everything is set up, here are the commands you'll use most often. Run these on the Pi (via SSH or VS Code terminal):
+
+| What You Want to Do | Command | Where to Run |
+|---|---|---|
+| Connect to the Pi from your laptop | `ssh pi@trio.local` | Your laptop's terminal |
+| Activate the Python environment | `cd ~/thesis && source venv/bin/activate` | On the Pi |
+| Test the soil sensor | `python3 src/sensors.py` | On the Pi |
+| Test the camera | `python3 src/camera.py` | On the Pi |
+| Take a single reading (quick test) | `python3 src/main.py --once` | On the Pi |
+| Start continuous monitoring | `python3 src/main.py` | On the Pi |
+| Stop continuous monitoring | Press `Ctrl+C` | On the Pi |
+| Check if auto-start service is running | `sudo systemctl status thesis.service` | On the Pi |
+| View live system logs | `journalctl -u thesis.service -f` | On the Pi |
+| See saved WiFi networks | `nmcli connection show` | On the Pi |
+
+---
+
+## Troubleshooting (Common Problems)
+
+| Problem | Solution |
 |---|---|
-| SSH into Pi | `ssh pi@trio.local` |
-| Activate venv | `cd ~/thesis && source venv/bin/activate` |
-| Test sensors | `python3 src/sensors.py` |
-| Test camera | `python3 src/camera.py` |
-| Single reading | `python3 src/main.py --once` |
-| Continuous monitoring | `python3 src/main.py` |
-| Check service status | `sudo systemctl status thesis.service` |
-| View live logs | `journalctl -u thesis.service -f` |
-| List saved WiFi networks | `nmcli connection show` |
-| Add a new WiFi network | `sudo nmcli connection add type wifi ifname wlan0 con-name "NAME" ssid "SSID"` |
+| `ssh: Could not resolve hostname trio.local` | The Pi isn't on the same WiFi as your laptop. Make sure both devices are connected to the same network. Wait 1–2 minutes after powering on the Pi. |
+| `Permission denied (publickey,password)` | You typed the wrong password. The default is `raspberrypi`. |
+| Pi won't connect to WiFi after moving locations | You need to pre-configure WiFi networks in Step 2. The Pi can only connect to networks it already knows about. |
+| `ModuleNotFoundError: No module named 'xxx'` | You forgot to activate the virtual environment. Run: `cd ~/thesis && source venv/bin/activate` |
+| Soil sensor returns `None` or all zeros | Check wiring (Step 3). Make sure the 12V power supply is plugged in. Try swapping the A+ and B- wires. |
+| Camera test says "Failed to capture" | Unplug and re-plug the USB webcam. Run `v4l2-ctl --list-devices` to check if the Pi sees it. |
+| VS Code can't connect to Pi | Make sure the Pi is powered on and connected to WiFi. Try `ssh pi@trio.local` from your laptop's terminal first. |
 
----
-
-## Current Setup Mode
-- **Edge Impulse Model**: Interim FOMO MobileNetV2 0.35 (F1 46.1%) — deployed for hardware integration testing
-- **Retraining Plan**: The system automatically saves camera frames from the Pi to `~/thesis/data/retraining_frames/`. Upload these to Edge Impulse as new training data, then retrain with improved settings (FOMO MobileNetV2 0.1, 416×416 input, learned optimizer, 150 cycles, LR 0.001). Swap the new `.eim` file — no code changes needed.
-- **Soil Moisture**: Using **digital output (DO)** pin → GPIO reads HIGH/LOW (no ADC needed)
-- When ADC module arrives, change `SOIL_SENSOR_MODE = "analog"` in `config/settings.py`
-- **NB-IoT**: Stubs ready in code. Activate when SIM7080G + GOMO SIM arrive

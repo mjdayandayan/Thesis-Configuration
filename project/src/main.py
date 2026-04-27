@@ -13,12 +13,12 @@ from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from config.settings import (
-    LOG_INTERVAL_SECONDS, DATA_DIR, LOG_DIR,
-    TEMP_MIN, TEMP_MAX, HUMIDITY_MIN, HUMIDITY_MAX,
-    SOIL_MOISTURE_MIN, SOIL_SENSOR_MODE, MODEL_PATH,
-    SAVE_RETRAINING_FRAMES, RETRAINING_DIR, RETRAINING_INTERVAL
+    LOG_INTERVAL_SECONDS, DATA_DIR, LOG_DIR, MODEL_PATH,
+    SAVE_RETRAINING_FRAMES, RETRAINING_DIR, RETRAINING_INTERVAL,
+    SOIL_MOISTURE_MIN, SOIL_PH_MIN, SOIL_PH_MAX,
+    SOIL_EC_MIN, SOIL_EC_MAX, SOIL_TEMP_MIN, SOIL_TEMP_MAX
 )
-from src.sensors import DHTSensor, get_soil_sensor
+from src.sensors import SoilSensorRS485
 from src.camera import Camera
 from src.transmit import DataTransmitter
 
@@ -54,30 +54,36 @@ def save_retraining_frame(frame):
 
 
 def check_alerts(data):
-    """Check sensor readings against thresholds and return alert messages."""
+    """Check RS485 sensor readings against thresholds and return alert messages."""
     alerts = []
-    temp = data.get('temperature')
-    humidity = data.get('humidity')
+    soil = data.get('soil_data', {})
+    if not isinstance(soil, dict):
+        return alerts
 
-    if temp is not None:
-        if temp < TEMP_MIN:
-            alerts.append(f"LOW TEMPERATURE: {temp}°C (min: {TEMP_MIN}°C)")
-        elif temp > TEMP_MAX:
-            alerts.append(f"HIGH TEMPERATURE: {temp}°C (max: {TEMP_MAX}°C)")
+    moisture = soil.get('soil_moisture')
+    if moisture is not None and moisture < SOIL_MOISTURE_MIN:
+        alerts.append(f"LOW SOIL MOISTURE: {moisture}% (min: {SOIL_MOISTURE_MIN}%)")
 
-    if humidity is not None:
-        if humidity < HUMIDITY_MIN:
-            alerts.append(f"LOW HUMIDITY: {humidity}% (min: {HUMIDITY_MIN}%)")
-        elif humidity > HUMIDITY_MAX:
-            alerts.append(f"HIGH HUMIDITY: {humidity}% (max: {HUMIDITY_MAX}%)")
+    soil_temp = soil.get('soil_temperature')
+    if soil_temp is not None:
+        if soil_temp < SOIL_TEMP_MIN:
+            alerts.append(f"LOW SOIL TEMP: {soil_temp}°C (min: {SOIL_TEMP_MIN}°C)")
+        elif soil_temp > SOIL_TEMP_MAX:
+            alerts.append(f"HIGH SOIL TEMP: {soil_temp}°C (max: {SOIL_TEMP_MAX}°C)")
 
-    soil = data.get('soil_moisture', {})
-    if SOIL_SENSOR_MODE == "digital" and soil.get('status') == 'dry':
-        alerts.append("SOIL IS DRY — rice paddy needs water!")
-    elif SOIL_SENSOR_MODE == "analog":
-        pct = soil.get('percentage')
-        if pct is not None and pct < SOIL_MOISTURE_MIN:
-            alerts.append(f"LOW SOIL MOISTURE: {pct}% (min: {SOIL_MOISTURE_MIN}%)")
+    ph = soil.get('ph')
+    if ph is not None:
+        if ph < SOIL_PH_MIN:
+            alerts.append(f"LOW SOIL pH: {ph} (min: {SOIL_PH_MIN})")
+        elif ph > SOIL_PH_MAX:
+            alerts.append(f"HIGH SOIL pH: {ph} (max: {SOIL_PH_MAX})")
+
+    ec = soil.get('ec')
+    if ec is not None:
+        if ec < SOIL_EC_MIN:
+            alerts.append(f"LOW SOIL EC: {ec} µS/cm (min: {SOIL_EC_MIN})")
+        elif ec > SOIL_EC_MAX:
+            alerts.append(f"HIGH SOIL EC: {ec} µS/cm (max: {SOIL_EC_MAX})")
 
     return alerts
 
@@ -92,24 +98,27 @@ def save_data(data):
         f.write(json.dumps(data) + '\n')
 
 
-def run_once(dht, soil, camera, model, transmitter):
+def run_once(soil, camera, model, transmitter):
     """Take a single complete reading."""
     timestamp = datetime.now().isoformat()
     data = {'timestamp': timestamp}
 
-    # Read DHT22
-    dht_data = dht.read()
-    if dht_data:
-        data['temperature'] = dht_data['temperature']
-        data['humidity'] = dht_data['humidity']
-        logger.info(f"DHT22: {dht_data['temperature']}°C, {dht_data['humidity']}%")
+    # Read RS485 soil sensor
+    if soil.available:
+        soil_data = soil.read()
+        data['soil_data'] = soil_data
+        if soil_data:
+            logger.info(
+                f"RS485 Soil: moisture={soil_data.get('soil_moisture')}%, "
+                f"temp={soil_data.get('soil_temperature')}°C, "
+                f"EC={soil_data.get('ec')} µS/cm, "
+                f"pH={soil_data.get('ph')}, "
+                f"humidity={soil_data.get('soil_humidity')}%"
+            )
+        else:
+            logger.warning("Soil sensor read failed")
     else:
-        logger.warning("DHT22 read failed")
-
-    # Read soil moisture
-    soil_data = soil.read()
-    data['soil_moisture'] = soil_data
-    logger.info(f"Soil: {soil_data}")
+        data['soil_data'] = None
 
     # Capture image and run inference
     frame = camera.capture_frame()
@@ -158,12 +167,14 @@ def main():
 
     logger.info("=" * 50)
     logger.info("Rice Paddy Monitoring System Starting")
-    logger.info(f"Soil sensor mode: {SOIL_SENSOR_MODE}")
     logger.info("=" * 50)
 
     # Initialize components
-    dht = DHTSensor()
-    soil = get_soil_sensor()
+    soil = SoilSensorRS485()
+    if soil.available:
+        logger.info("RS485 soil sensor: connected")
+    else:
+        logger.warning("RS485 soil sensor: NOT AVAILABLE — running without soil data")
     camera = Camera()
     transmitter = DataTransmitter()
 
@@ -179,17 +190,16 @@ def main():
 
     try:
         if args.once:
-            data = run_once(dht, soil, camera, model, transmitter)
+            data = run_once(soil, camera, model, transmitter)
             print(json.dumps(data, indent=2))
         else:
             logger.info(f"Continuous monitoring — interval: {LOG_INTERVAL_SECONDS}s")
             while True:
-                run_once(dht, soil, camera, model, transmitter)
+                run_once(soil, camera, model, transmitter)
                 time.sleep(LOG_INTERVAL_SECONDS)
     except KeyboardInterrupt:
         logger.info("Monitoring stopped by user")
     finally:
-        dht.cleanup()
         soil.cleanup()
         camera.release()
         if model:

@@ -1,102 +1,126 @@
-## STEP 7: SENSOR CALIBRATION
+## STEP 7: VERIFYING AND CALIBRATING THE SOIL SENSOR
 
-### Soil Moisture Sensor — Digital Mode Calibration
-With the digital output (DO) pin, the sensor gives a binary wet/dry reading.
-The threshold is controlled by the **potentiometer** on the sensor module.
+> **What you'll do:** Run a verification script that takes multiple readings from the RS485 soil sensor to confirm it's working correctly and returning reasonable values.
 
-**Calibration procedure:**
-1. Insert the sensor prongs into **dry soil** (or hold in air)
-2. Turn the potentiometer until the module's LED **just turns off**
-   (this sets the threshold near the dry point)
-3. Insert the sensor into **wet/moist soil** (like rice paddy conditions)
-4. The LED should turn **on** — if not, turn the potentiometer slightly counter-clockwise
-5. Fine-tune until the sensor reliably switches between wet and dry at your desired moisture level
+> **What you need for this step:**
+> - The Pi running with the virtual environment activated
+> - The RS485 sensor connected and 12V power supply turned on
+> - The sensor probe inserted into soil (or held in air for a dry reading)
 
-**Test the calibration:**
-```bash
-cd ~/thesis
-source venv/bin/activate
+> **Does this sensor need manual calibration?** No — the RS485 5-in-1 sensor comes factory-calibrated. Unlike some sensors that have a knob (potentiometer) you need to adjust, this sensor outputs pre-calibrated digital values. All we need to do is **verify** that the readings are reasonable.
 
-python3 -c "
-from src.sensors import SoilMoistureSensor
-import time
+---
 
-sensor = SoilMoistureSensor()
+### Part A: Run the Verification Script
 
-print('Soil Moisture Digital Calibration Test')
-print('=' * 40)
-print('Move the sensor between dry and wet soil.')
-print('Press Ctrl+C to stop.\n')
+1. **SSH into the Pi** (or use VS Code's terminal):
+   ```
+   ssh pi@trio.local
+   ```
 
-try:
-    while True:
-        result = sensor.read()
-        print(f'Status: {result[\"status\"]:5s} | Digital: {result[\"digital_value\"]}')
-        time.sleep(1)
-except KeyboardInterrupt:
-    print('\nDone.')
-finally:
-    sensor.cleanup()
-"
+2. **Activate the virtual environment and go to the project directory:**
+   ```bash
+   cd ~/thesis
+   source venv/bin/activate
+   ```
+
+3. **Run the verification script:**
+   ```bash
+   python3 -c "
+   from src.sensors import SoilSensorRS485
+   import time
+
+   sensor = SoilSensorRS485()
+
+   print('RS485 5-in-1 Soil Sensor Verification')
+   print('=' * 50)
+   print('Taking 5 readings (10 seconds)...')
+   print('')
+
+   for i in range(5):
+       result = sensor.read()
+       if result:
+           print(f'Reading {i+1}:')
+           print(f'  Soil Moisture:  {result[\"soil_moisture\"]}%')
+           print(f'  Soil Temp:      {result[\"soil_temperature\"]}°C')
+           print(f'  EC:             {result[\"ec\"]} µS/cm')
+           print(f'  pH:             {result[\"ph\"]}')
+           print(f'  Soil Humidity:  {result[\"soil_humidity\"]}%')
+       else:
+           print(f'Reading {i+1}: FAILED — check wiring and adapter')
+       time.sleep(2)
+
+   sensor.cleanup()
+   print('')
+   print('Expected ranges for rice paddy soil:')
+   print('  Moisture:  40-100%')
+   print('  Temp:      18-35°C')
+   print('  EC:        200-2000 µS/cm')
+   print('  pH:        5.5-7.0')
+   "
+   ```
+
+---
+
+### Part B: Understanding the Results
+
+> **What you should see:** 5 readings printed one after another, each with 5 values.
+
+**Example output:**
+```
+RS485 5-in-1 Soil Sensor Verification
+==================================================
+Taking 5 readings (10 seconds)...
+
+Reading 1:
+  Soil Moisture:  52.3%
+  Soil Temp:      27.1°C
+  EC:             480 µS/cm
+  pH:             6.1
+  Soil Humidity:  65.2%
+Reading 2:
+  Soil Moisture:  52.5%
+  Soil Temp:      27.1°C
+  ...
 ```
 
-### DHT22 Sensor Verification
-The DHT22 doesn't need calibration, but verify readings are reasonable:
-```bash
-python3 -c "
-from src.sensors import DHTSensor
-import time
+**How to know if the readings are correct:**
 
-sensor = DHTSensor()
+| Measurement | Expected Range for Rice Paddy | What It Means |
+|---|---|---|
+| **Soil Moisture** | 40–100% | How wet the soil is. Rice paddies are typically very moist. |
+| **Soil Temperature** | 18–35°C | Temperature of the soil. Should be close to air temperature. |
+| **EC (Electrical Conductivity)** | 200–2000 µS/cm | Measures minerals/salts in the soil. Higher = more nutrients. |
+| **pH** | 5.5–7.0 | Acidity of the soil. Rice grows best in slightly acidic soil. |
+| **Soil Humidity** | Varies | Relative humidity of the soil. |
 
-print('DHT22 Sensor Verification')
-print('=' * 40)
-print('Taking 5 readings (10 seconds)...\n')
+> **If the readings are within these ranges** (approximately) — the sensor is working correctly. ✅
+>
+> **If the readings are way off** (e.g., temperature shows 0°C when it's 30°C outside, or pH shows 14) — see the troubleshooting section below.
+>
+> **If the sensor is in air** (not in soil), expect: moisture near 0%, EC near 0, and temperature close to room temperature. This is normal.
 
-for i in range(5):
-    result = sensor.read()
-    if result:
-        print(f'Reading {i+1}: {result[\"temperature\"]}°C, {result[\"humidity\"]}%')
-    else:
-        print(f'Reading {i+1}: FAILED')
-    time.sleep(2)
+---
 
-sensor.cleanup()
-print('\nIf readings are reasonable for your environment, the sensor is working.')
-"
-```
+### Part C: Troubleshooting
 
-### Future: Analog Soil Moisture Calibration (when ADS1115 arrives)
-When you switch to analog mode, you'll need these calibration values:
-```bash
-python3 -c "
-from src.sensors import SoilMoistureSensorAnalog
-import time
+| Problem | What to Check |
+|---|---|
+| **All 5 readings say "FAILED"** | The sensor isn't communicating. Check: (1) Is the 12V power supply turned on? (2) Are the Brown and Blue wires connected to A+ and B- on the adapter? (3) Try swapping Brown and Blue — some adapters label them differently. |
+| **Readings are garbled or nonsensical** | The communication speed (baud rate) might be wrong. Open `config/settings.py` and try changing `RS485_BAUDRATE` to `4800` or `9600` (common values). |
+| **Values are always the same / don't change** | Check the register addresses in `config/settings.py` (`RS485_REG_*` settings) against your sensor's datasheet. Different manufacturers use different register addresses. |
+| **"Port not found" error** | Run `ls /dev/ttyUSB*` to see what ports are available. If it shows `/dev/ttyUSB1` instead of `/dev/ttyUSB0`, update `RS485_PORT` in `config/settings.py`. This can happen if the webcam's USB was detected first. |
+| **Readings look reasonable in air but wrong in soil** | The sensor may need to be fully inserted (at least to the marked line on the probe). Make sure the sensor prongs have good contact with the soil. |
 
-sensor = SoilMoistureSensorAnalog()
+---
 
-print('Analog Soil Moisture Calibration')
-print('=' * 40)
+### ✅ Checkpoint
 
-input('\n1. Hold sensor in DRY AIR, press Enter...')
-dry_readings = []
-for i in range(10):
-    dry_readings.append(sensor.read_raw())
-    time.sleep(0.5)
-dry_value = sum(dry_readings) // len(dry_readings)
-print(f'   DRY value: {dry_value}')
+You've now:
+- ✅ Verified the RS485 sensor is communicating correctly
+- ✅ Confirmed that readings are within expected ranges
+- ✅ Understand what each measurement means
 
-input('\n2. Submerge sensor in WATER, press Enter...')
-wet_readings = []
-for i in range(10):
-    wet_readings.append(sensor.read_raw())
-    time.sleep(0.5)
-wet_value = sum(wet_readings) // len(wet_readings)
-print(f'   WET value: {wet_value}')
-
-print(f'\nUpdate config/settings.py with:')
-print(f'SOIL_DRY = {dry_value}')
-print(f'SOIL_WET = {wet_value}')
-sensor.cleanup()
-"
-```
+> **That's it!** Your system is fully set up and tested. The monitoring system is ready to run.
+> - For manual operation: `python3 src/main.py` (from `~/thesis/` with venv activated)
+> - For automatic operation: the systemd service (if you set it up in Step 6)

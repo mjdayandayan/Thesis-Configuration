@@ -1,51 +1,137 @@
-## STEP 2: BOOT AND SSH ACCESS
+## STEP 2: CONNECTING TO THE PI AND SETTING UP WIFI
 
-### First Connection
-1. Open **Command Prompt** (or PowerShell) on your laptop
-2. SSH into the Pi:
+> **What you'll do:** Connect to the Raspberry Pi from your laptop using SSH, run system updates, and pre-configure multiple WiFi networks so the Pi automatically connects wherever you take it.
+
+> **What you need for this step:**
+> - Your laptop (connected to the **same WiFi** as the Pi)
+> - The Pi powered on and connected to WiFi (from Step 1)
+> - A list of WiFi networks you'll use (name + password for each: home, school, lab, phone hotspot, etc.)
+
+---
+
+### Part A: Connect to the Pi for the First Time
+
+> **What is SSH?** It stands for "Secure Shell." It's a way to open a terminal (command line) on the Raspberry Pi from your laptop — like a remote control for the Pi's terminal. You type commands on your laptop, but they run on the Pi.
+
+1. On your **laptop**, open a terminal:
+   - **Windows:** Press `Windows key`, type `cmd`, and press Enter to open **Command Prompt**
+   - You can also use **PowerShell** or **Windows Terminal** — any of these work
+
+2. Type this command and press **Enter**:
    ```
    ssh pi@trio.local
    ```
-   If `trio.local` doesn't resolve, find the Pi's IP from your router admin page and use:
-   ```
-   ssh pi@<IP_ADDRESS>
-   ```
-3. Type `yes` when prompted about the fingerprint, then enter your password: `raspberrypi`
 
-### System Updates
-4. Update all packages (this may take several minutes):
+   > **What does this mean?**
+   > - `ssh` = the command to start a remote connection
+   > - `pi` = the username you set in Step 1
+   > - `trio.local` = the hostname you set in Step 1, with `.local` added so your laptop can find it on the network
+
+3. **If you see this message**, type `yes` and press Enter:
+   ```
+   The authenticity of host 'trio.local' can't be established.
+   Are you sure you want to continue connecting (yes/no)?
+   ```
+   > This is normal — it only appears the first time. It's asking if you trust this device.
+
+4. **Enter the password:** `raspberrypi`
+   - ⚠️ You won't see any characters as you type — this is normal for security. Just type the password and press Enter.
+
+5. **You should now see something like:**
+   ```
+   pi@trio:~ $
+   ```
+   > 🎉 **You're now connected to the Pi!** Everything you type from now on runs on the Raspberry Pi, not your laptop. The `pi@trio` tells you you're logged in as user `pi` on a device named `trio`.
+
+---
+
+### ⚠️ Troubleshooting: Can't Connect?
+
+| Error | Solution |
+|---|---|
+| `ssh: Could not resolve hostname trio.local` | The Pi isn't on the network yet. Wait 2–3 minutes after powering it on. Make sure your laptop and Pi are on the **same WiFi network**. |
+| `Connection refused` | The Pi might still be booting. Wait another minute and try again. |
+| `Connection timed out` | The Pi isn't connected to WiFi. Double-check that you entered the correct WiFi name and password in Step 1. If wrong, you'll need to re-flash the SD card. |
+| Still can't connect? | Find the Pi's IP address from your WiFi router's admin page (usually `192.168.x.x`), then use: `ssh pi@192.168.1.XX` (replace with the actual IP) |
+
+---
+
+### Part B: Update the Pi's Software
+
+> **Why update?** The operating system on the SD card might be a few weeks old. Updating ensures you have the latest security fixes and software.
+
+6. Run this command (copy and paste the whole line):
    ```
    sudo apt update && sudo apt upgrade -y
    ```
-5. Reboot after updates:
+
+   > **What does this mean?**
+   > - `sudo` = "superuser do" — runs the command with admin privileges (like "Run as Administrator" on Windows)
+   > - `apt update` = downloads the list of available updates
+   > - `&&` = "and then" — runs the next command after the first one finishes
+   > - `apt upgrade -y` = installs all updates. The `-y` means "yes to all" so you don't have to approve each one
+
+   ⏳ **This takes 5–15 minutes.** You'll see lots of text scrolling — that's normal. Wait until you see the `pi@trio:~ $` prompt again.
+
+7. **Reboot the Pi** to apply updates:
    ```
    sudo reboot
    ```
-6. Wait ~1 minute, then reconnect:
+
+   > The SSH connection will close. This is normal — the Pi is restarting.
+
+8. **Wait about 1 minute**, then reconnect:
    ```
    ssh pi@trio.local
    ```
+   Enter the password again: `raspberrypi`
 
-## NETWORK CONFIGURATION FOR PORTABILITY
-This is critical — pre-configure ALL WiFi networks you'll use so you never lose SSH access when moving the Pi between locations.
+---
 
-### List Available Networks
-7. Scan for nearby WiFi networks:
+### Part C: Set Up Multiple WiFi Networks (IMPORTANT!)
+
+> **Why do this?** You'll probably use the Pi in different places — your home, school, lab, or in the field. If you only set up one WiFi network, the Pi won't be able to connect when you move it to a different location, and you'll lose access.
+>
+> By adding all your WiFi networks now, the Pi will **automatically connect** to whichever one is available — no reconfiguration needed.
+
+#### Step C1: See What WiFi Networks Are Nearby
+
+9. Run this to scan for available WiFi networks:
    ```
    sudo nmcli dev wifi list
    ```
-   Press `q` to return to the prompt.
+   > You'll see a table of nearby WiFi networks. Press `q` to exit if it shows a scrollable list.
 
-### Add Additional WiFi Networks
-For EACH WiFi network you'll use (home, school, lab, field site, mobile hotspot), run:
+   > **What is `nmcli`?** It's the "Network Manager Command Line Interface" — a tool for managing WiFi connections on the Pi.
+
+#### Step C2: Add Each WiFi Network You'll Use
+
+For **each** WiFi network you plan to use, run these 4 commands. Replace the values in quotes with your actual network details:
+
 ```
-sudo nmcli connection add type wifi ifname wlan0 con-name "NETWORK_LABEL" ssid "ACTUAL_WIFI_NAME"
-sudo nmcli connection modify "NETWORK_LABEL" wifi-sec.key-mgmt wpa-psk
-sudo nmcli connection modify "NETWORK_LABEL" wifi-sec.psk "WIFI_PASSWORD"
-sudo nmcli connection modify "NETWORK_LABEL" connection.autoconnect yes
+sudo nmcli connection add type wifi ifname wlan0 con-name "LABEL" ssid "WIFI_NAME"
+sudo nmcli connection modify "LABEL" wifi-sec.key-mgmt wpa-psk
+sudo nmcli connection modify "LABEL" wifi-sec.psk "WIFI_PASSWORD"
+sudo nmcli connection modify "LABEL" connection.autoconnect yes
 ```
 
-**Example — adding your school WiFi:**
+> **What do these mean?**
+> - **Line 1:** Creates a new saved WiFi connection. `LABEL` is a short name you choose (e.g., "home", "school"). `WIFI_NAME` is the actual WiFi SSID that appears in the scan.
+> - **Line 2:** Sets the security type to WPA-PSK (the most common WiFi security)
+> - **Line 3:** Sets the WiFi password
+> - **Line 4:** Tells the Pi to automatically connect to this network when it's available
+
+---
+
+**Example — Adding your home WiFi:**
+```
+sudo nmcli connection add type wifi ifname wlan0 con-name "home" ssid "MyHomeWiFi"
+sudo nmcli connection modify "home" wifi-sec.key-mgmt wpa-psk
+sudo nmcli connection modify "home" wifi-sec.psk "myhomepassword123"
+sudo nmcli connection modify "home" connection.autoconnect yes
+```
+
+**Example — Adding your school WiFi:**
 ```
 sudo nmcli connection add type wifi ifname wlan0 con-name "school" ssid "UniversityWiFi"
 sudo nmcli connection modify "school" wifi-sec.key-mgmt wpa-psk
@@ -53,7 +139,7 @@ sudo nmcli connection modify "school" wifi-sec.psk "school_password_here"
 sudo nmcli connection modify "school" connection.autoconnect yes
 ```
 
-**Example — adding a mobile hotspot as backup:**
+**Example — Adding your phone hotspot as a backup:**
 ```
 sudo nmcli connection add type wifi ifname wlan0 con-name "hotspot" ssid "MyPhoneHotspot"
 sudo nmcli connection modify "hotspot" wifi-sec.key-mgmt wpa-psk
@@ -61,50 +147,56 @@ sudo nmcli connection modify "hotspot" wifi-sec.psk "hotspot_password"
 sudo nmcli connection modify "hotspot" connection.autoconnect yes
 ```
 
-### Set Network Priority (optional but recommended)
-Higher priority = preferred connection. Set your primary development WiFi highest:
+> 📝 **Repeat this for every WiFi network you'll use.** It's better to add too many than too few.
+
+---
+
+#### Step C3: Set Priorities (Which WiFi to Prefer)
+
+> If multiple saved WiFi networks are available at the same time, the Pi connects to the one with the **highest priority number**.
+
+10. Set priorities for your networks:
+   ```
+   sudo nmcli connection modify "home" connection.autoconnect-priority 100
+   sudo nmcli connection modify "school" connection.autoconnect-priority 50
+   sudo nmcli connection modify "hotspot" connection.autoconnect-priority 10
+   ```
+
+   > In this example, if both "home" and "school" WiFi are available, the Pi will connect to "home" because it has priority 100 (higher than 50).
+
+---
+
+#### Step C4: Verify Everything Was Saved
+
+11. Check that all your WiFi networks are saved:
+   ```
+   nmcli connection show
+   ```
+
+   > You should see a table with all your saved networks listed. The one currently in use will be highlighted or show "wlan0" in the DEVICE column.
+
+---
+
+### ✅ Checkpoint
+
+You've now:
+- ✅ Connected to the Pi via SSH
+- ✅ Updated all software
+- ✅ Added all WiFi networks you'll use
+- ✅ Set connection priorities
+
+**From now on**, whenever you move the Pi to a different location, it will automatically connect to the strongest saved WiFi network. You just need to wait ~30 seconds after powering it on, then connect via `ssh pi@trio.local`.
+
+---
+
+### How It Works (Summary)
+
 ```
-sudo nmcli connection modify "home" connection.autoconnect-priority 100
-sudo nmcli connection modify "school" connection.autoconnect-priority 50
-sudo nmcli connection modify "hotspot" connection.autoconnect-priority 10
+You power on the Pi → NetworkManager starts → Scans for WiFi →
+Finds "home" (priority 100) and "school" (priority 50) →
+Connects to "home" because it has the highest priority →
+You run: ssh pi@trio.local → You're in!
 ```
 
-### Verify All Saved Networks
-```
-nmcli connection show
-```
-Green = active, white = saved but idle.
+If you move to school, the Pi can't find "home" WiFi, so it connects to "school" instead. No action needed from you — it's automatic.
 
-### How It Works
-- When the Pi boots, NetworkManager automatically connects to the highest-priority available network
-- If you move locations, it auto-connects to the next available saved network
-- You never need to reconfigure — just add networks once
-- When NB-IoT arrives, it will be added as the lowest-priority fallback
-
-## PREPARE FOR NB-IOT (FUTURE-PROOFING)
-Create a reference file on the Pi for when your NB-IoT module arrives:
-```
-mkdir -p ~/network-configs
-cat > ~/network-configs/README.md << 'EOF'
-# Network Configuration Notes
-
-## Saved WiFi Networks
-- home: Primary development
-- school: University lab
-- hotspot: Mobile hotspot backup
-
-## NB-IoT Integration (Future)
-When NB-IoT module arrives:
-1. Module will appear as /dev/ttyUSB0 or /dev/ttyAMA0
-2. Use NetworkManager GSM/cellular connection type
-3. Command: sudo nmcli connection add type gsm ifname "*" con-name "nbiot" apn "YOUR_APN"
-4. Set lowest priority: sudo nmcli connection modify "nbiot" connection.autoconnect-priority 1
-
-## Connection Priority Order
-1. Ethernet (if connected)
-2. WiFi home (priority 100)
-3. WiFi school (priority 50)
-4. WiFi hotspot (priority 10)
-5. NB-IoT (priority 1 — field deployment only)
-EOF
-```

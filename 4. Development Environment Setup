@@ -1,94 +1,165 @@
-## STEP 4: DEVELOPMENT ENVIRONMENT SETUP
+## STEP 4: INSTALLING THE SOFTWARE ON THE PI
 
-### Create Project Directory and Virtual Environment
-SSH into the Pi, then run:
-```bash
-# Create project directory
-mkdir -p ~/thesis
-cd ~/thesis
+> **What you'll do:** Copy the project files to the Pi and run a single setup command that installs everything the system needs to work.
 
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
-```
+> **What you need for this step:**
+> - SSH access to the Pi (from Step 2)
+> - The project files from this repository (the `project/` folder)
 
-### Install System Dependencies
-These are needed by the DHT22 sensor library and OpenCV:
-```bash
-sudo apt install -y libgpiod2 python3-libgpiod
-sudo apt install -y libcap-dev
-sudo apt install -y v4l-utils
-sudo apt install -y libopencv-dev python3-opencv
-```
+---
 
-### Install Python Packages
-```bash
-pip install --upgrade pip
+### Part A: Copy the Project Files to the Pi
 
-# Sensor libraries
-pip install adafruit-circuitpython-dht
-pip install RPi.GPIO                     # For digital GPIO soil moisture
+> The `project/` folder in this repository contains all the code. You need to copy it to the Pi's `~/thesis/` directory.
+>
+> **What does `~/thesis/` mean?** The `~` symbol is a shortcut for the home directory (`/home/pi/`). So `~/thesis/` means `/home/pi/thesis/` — this is where all the project files will live on the Pi.
 
-# Camera and CV
-pip install opencv-python-headless numpy pillow
+1. **On your laptop**, open a terminal (Command Prompt, PowerShell, or Terminal)
 
-# Edge Impulse inference
-pip install edge_impulse_linux
+2. Navigate to where you downloaded/cloned this repository. For example:
+   ```
+   cd C:\Users\YourName\Downloads\Thesis-Configuration
+   ```
 
-# Data transmission (optional, for future use)
-pip install paho-mqtt requests
+3. **Create the thesis directory on the Pi** (from your laptop):
+   ```
+   ssh pi@trio.local "mkdir -p ~/thesis"
+   ```
 
-# Web dashboard (optional)
-pip install flask
-```
+4. **Copy all project files to the Pi:**
+   ```
+   scp -r project/* pi@trio.local:~/thesis/
+   ```
+   Enter the password (`raspberrypi`) when prompted.
 
-### Future: When ADS1115 ADC Arrives
-```bash
-# Activate venv first
-cd ~/thesis && source venv/bin/activate
+   > **What is `scp`?** It stands for "Secure Copy" — it copies files from your laptop to the Pi (or vice versa) over the network.
+   >
+   > **What does `-r` mean?** It means "recursive" — copy all files and subfolders, not just the top level.
+   >
+   > **What does `project/*` mean?** Copy everything inside the `project/` folder.
+   >
+   > **What does `pi@trio.local:~/thesis/` mean?** Copy it to the `~/thesis/` directory on the Pi, logged in as user `pi`.
 
-# Install ADC library
-pip install adafruit-circuitpython-ads1x15
+   > **You should see** each file being copied:
+   > ```
+   > requirements.txt          100%  400     5.2KB/s   00:00
+   > setup.sh                  100% 1.2KB   15.0KB/s   00:00
+   > settings.py               100% 2.1KB   26.5KB/s   00:00
+   > ...
+   > ```
 
-# Then change SOIL_SENSOR_MODE to "analog" in config/settings.py
-```
+---
 
-### Create Project Structure
-```bash
-cd ~/thesis
-mkdir -p src config logs data models
-touch src/__init__.py
-```
+### Part B: Run the Setup Script (One Command!)
 
-### Verify Installation
-```bash
-python3 -c "
-import adafruit_dht
-import cv2
-import RPi.GPIO as GPIO
-print('adafruit_dht OK')
-print(f'OpenCV {cv2.__version__} OK')
-print('RPi.GPIO OK')
-print('All core dependencies installed successfully!')
-"
-```
+5. **SSH into the Pi:**
+   ```
+   ssh pi@trio.local
+   ```
 
-### Project Structure
+6. **Go to the project directory:**
+   ```
+   cd ~/thesis
+   ```
+
+7. **Run the setup script:**
+   ```
+   bash setup.sh
+   ```
+
+   > **What does this script do?** It automates everything:
+   > 1. Installs system-level libraries the Pi needs (for the camera, OpenCV, etc.)
+   > 2. Creates a **Python virtual environment** (an isolated space for our Python packages so they don't conflict with other software)
+   > 3. Installs all the Python packages listed in `requirements.txt`
+   > 4. Creates all the project directories (`logs/`, `data/`, `models/`, etc.)
+   > 5. Verifies that everything installed correctly
+
+   ⏳ **This takes about 5–10 minutes.** You'll see progress messages like:
+   ```
+   [1/5] Installing system dependencies...
+         Done.
+   [2/5] Setting up Python virtual environment...
+         Created venv at /home/pi/thesis/venv
+   [3/5] Installing Python packages...
+         Done.
+   [4/5] Creating project directories...
+         Done.
+   [5/5] Verifying installation...
+
+     cv2 (OpenCV)      : 4.x.x
+     minimalmodbus      : 2.x.x
+     pyserial           : 3.x.x
+     ...
+
+   ==================================================
+    Setup complete!
+    Activate with:  source venv/bin/activate
+    Run with:       python3 src/main.py --once
+   ==================================================
+   ```
+
+   > ✅ If you see **"Setup complete!"** — everything installed successfully.
+   >
+   > ❌ If you see errors, check that the Pi has internet access: `ping -c 3 google.com`
+
+---
+
+### Part C: Activate the Virtual Environment
+
+8. **Activate the virtual environment:**
+   ```
+   source venv/bin/activate
+   ```
+
+   > **What is a virtual environment?** It's like a separate "bubble" for Python packages. The packages we installed (OpenCV, minimalmodbus, etc.) live inside this bubble and don't affect the rest of the Pi's system. You need to activate it every time you open a new terminal session.
+
+   > **How do you know it's active?** Your terminal prompt will change from:
+   > ```
+   > pi@trio:~/thesis $
+   > ```
+   > to:
+   > ```
+   > (venv) pi@trio:~/thesis $
+   > ```
+   > Notice the `(venv)` at the beginning — that means the virtual environment is active.
+
+---
+
+### ✅ Checkpoint
+
+You've now:
+- ✅ Copied all project files to the Pi
+- ✅ Installed all system and Python dependencies
+- ✅ Created the project directory structure
+- ✅ Verified the installation
+
+> **Remember:** Every time you SSH into the Pi and want to run the project, you need to activate the virtual environment first:
+> ```
+> cd ~/thesis && source venv/bin/activate
+> ```
+
+---
+
+### Project Structure (What Was Created)
+
+After running `setup.sh`, the `~/thesis/` directory on the Pi looks like this:
+
 ```
 ~/thesis/
-├── venv/                          # Python virtual environment
-├── models/
-│   └── your-edge-impulse-model.eim  # Edge Impulse model file
+├── setup.sh                       # The setup script you just ran
+├── requirements.txt               # List of Python packages
+├── venv/                          # Python virtual environment (auto-created)
+├── models/                        # Where the AI model goes (Step 6)
 ├── src/
-│   ├── __init__.py
-│   ├── sensors.py                 # DHT22 + soil moisture (digital/analog)
-│   ├── camera.py                  # USB webcam capture
-│   ├── inference.py               # Edge Impulse model inference
-│   ├── transmit.py                # Data transmission (WiFi/NB-IoT)
-│   └── main.py                    # Main monitoring loop
+│   ├── __init__.py                # Required by Python
+│   ├── sensors.py                 # Reads the RS485 soil sensor
+│   ├── camera.py                  # Captures webcam photos
+│   ├── inference.py               # Runs the AI model
+│   ├── transmit.py                # Sends data over WiFi
+│   └── main.py                    # Main program
 ├── config/
-│   └── settings.py                # All configuration in one place
-├── logs/                          # Runtime logs
-├── data/                          # Saved sensor data and images
-└── requirements.txt               # Python dependencies
+│   └── settings.py                # All settings (ports, thresholds, etc.)
+├── logs/                          # System logs
+└── data/
+    └── retraining_frames/         # Saved photos for retraining later
 ```
