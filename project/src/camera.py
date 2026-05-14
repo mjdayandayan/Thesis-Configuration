@@ -1,5 +1,5 @@
 """
-USB webcam interface for image capture.
+Logitech C922 Pro USB webcam interface for image capture.
 """
 
 import cv2

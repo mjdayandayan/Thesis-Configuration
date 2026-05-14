@@ -1,5 +1,5 @@
 """
-Edge Impulse model inference for rice paddy disease/health detection.
+Edge Impulse YOLO-Pro model inference for rice growth stage detection.
 """
 
 import os
@@ -12,7 +12,7 @@ from config.settings import MODEL_PATH, CONFIDENCE_THRESHOLD
 
 
 class ModelInference:
-    """Wrapper for Edge Impulse Linux model inference (FOMO object detection)."""
+    """Wrapper for Edge Impulse Linux model inference (YOLO-Pro object detection)."""
 
     def __init__(self, model_path=MODEL_PATH):
         if not os.path.exists(model_path):
@@ -60,9 +60,9 @@ class ModelInference:
     def get_top_prediction(self, result):
         """
         Get the label with the highest confidence from classify() output.
-        Handles both FOMO (bounding_boxes) and classification output formats.
+        Handles both YOLO-Pro (bounding_boxes) and classification output formats.
         """
-        # FOMO returns bounding_boxes
+        # YOLO-Pro returns bounding_boxes
         bboxes = result.get('result', {}).get('bounding_boxes', [])
         if bboxes:
             # Filter by confidence threshold
@@ -82,7 +82,7 @@ class ModelInference:
             top_label = max(label_counts, key=label_counts.get)
             return top_label, label_max_conf[top_label]
 
-        # Fallback: classification format (non-FOMO models)
+        # Fallback: classification format (non-YOLO models)
         classifications = result.get('result', {}).get('classification', {})
         if classifications:
             top_label = max(classifications, key=classifications.get)
@@ -92,7 +92,7 @@ class ModelInference:
 
     def get_all_detections(self, result):
         """
-        Get all FOMO detections above the confidence threshold.
+        Get all YOLO-Pro detections above the confidence threshold.
         Returns list of dicts: [{'label': str, 'confidence': float, 'x': int, 'y': int}, ...]
         """
         bboxes = result.get('result', {}).get('bounding_boxes', [])

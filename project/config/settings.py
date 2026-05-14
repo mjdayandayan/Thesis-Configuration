@@ -38,28 +38,33 @@ RS485_NUM_REGISTERS = 5          # Number of consecutive registers to read
 # CAMERA CONFIGURATION
 # =============================================================
 
-# Webcam: USB Web Camera A4Tech
+# Webcam: Logitech C922 Pro HD Stream Webcam
+# - 1080p Full HD, glass lens, autofocus, IR-cut filter
+# - USB plug-and-play (UVC compliant), RPi 5 compatible
 CAMERA_INDEX = 0       # Usually 0 for first USB webcam
-CAMERA_WIDTH = 640     # Higher res = better retraining frames
-CAMERA_HEIGHT = 480
+CAMERA_WIDTH = 1920    # C922 Full HD 1080p — higher res = better retraining frames
+CAMERA_HEIGHT = 1080
 
 # =============================================================
 # EDGE IMPULSE MODEL
 # =============================================================
 
-# Current model: FOMO MobileNetV2 0.35 (interim, F1 46.1%)
-# Will be replaced after retraining with improved settings.
+# Current model: YOLO-Pro (Attention with SiLU, nano 2.4M) — Edge Impulse
+# Architecture: YOLO-Pro object detection with bounding boxes
+# Classes: Background, Booting Stage, Flowering Stage, Maturing Stage,
+#          Vegetative Stage, Weed Growth
+# Training: 200 cycles, LR 0.001, pretrained weights, medium augmentation
 # When you retrain, just swap the .eim file — no code changes needed.
 MODEL_PATH = "/home/pi/thesis/models/your-model.eim"
-CONFIDENCE_THRESHOLD = 0.6  # Ignore predictions below this confidence
+CONFIDENCE_THRESHOLD = 0.4  # YOLO-Pro with dense rice scenes — lower threshold + NMS
 
 # =============================================================
 # RETRAINING DATA CAPTURE
 # =============================================================
 
 # Save raw camera frames for uploading to Edge Impulse later.
-# These frames from the real deployment camera will significantly
-# improve model accuracy when used as additional training data.
+# These 1080p frames from the Logitech C922 will significantly
+# improve YOLO-Pro model accuracy when used as additional training data.
 SAVE_RETRAINING_FRAMES = True
 RETRAINING_DIR = "/home/pi/thesis/data/retraining_frames"
 RETRAINING_INTERVAL = 10  # Save every Nth capture (1 = every, 10 = every 10th)
@@ -86,10 +91,20 @@ SOIL_TEMP_MIN = 18.0          # °C — soil too cold for rice
 SOIL_TEMP_MAX = 35.0          # °C — soil too hot
 
 # =============================================================
-# DATA TRANSMISSION
+# DATA TRANSMISSION — SUPABASE
 # =============================================================
+# The RPi sends sensor data and images to Supabase.
+# The Streamlit dashboard reads from the same Supabase project.
+#
+# To get these values:
+#   1. Go to https://supabase.com/dashboard
+#   2. Open your project
+#   3. Go to Settings → API
+#   4. Copy the "Project URL" and "anon/public" key
 
-TRANSMISSION_MODE = "wifi"
+SUPABASE_URL = "https://wzxddmszyerunowrivhk.supabase.co"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind6eGRkbXN6eWVydW5vd3JpdmhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3NjI3NzgsImV4cCI6MjA5NDMzODc3OH0.CT1z0Exy0qQrOCSQpBZvS1nGYdoJ-0w3d9_iILA4aF8"
+SUPABASE_BUCKET = "field-images"  # Storage bucket name for camera images
 
-# Server endpoint (set when you have a server ready)
+# Fallback: generic HTTP POST endpoint (if not using Supabase)
 SERVER_URL = None

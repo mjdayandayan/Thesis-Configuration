@@ -10,11 +10,11 @@ This guide walks you through **everything** — from a fresh Raspberry Pi to a w
 
 This system monitors rice paddies using:
 
-1. **A USB webcam (A4Tech)** — takes photos of the rice field
+1. **A Logitech C922 Pro webcam** — takes photos of the rice field
 2. **A soil sensor** — measures 5 soil properties (moisture, temperature, humidity, pH, electrical conductivity)
 3. **A Raspberry Pi 5** — the small computer that runs everything, processes the photos with an AI model (Edge Impulse), and sends the data over WiFi
 
-The AI model identifies the growth stage of the rice (booting, flowering, maturing, vegetative) and detects weed growth from camera images.
+The AI model (YOLO-Pro) identifies the growth stage of the rice (vegetative, booting, flowering, maturing) and detects weed growth from camera images.
 
 ---
 
@@ -29,7 +29,7 @@ The AI model identifies the growth stage of the rice (booting, flowering, maturi
 | 3 | **USB-C Power Supply** (5V 5A) | Powers the Raspberry Pi |
 | 4 | **Micro SD Card** (32 GB or larger) | Storage for the Pi's operating system and your project |
 | 5 | **SD Card Reader** | Plugs into your laptop so you can write the OS to the SD card |
-| 6 | **USB Web Camera (A4Tech)** | Takes photos of the rice field |
+| 6 | **Logitech C922 Pro HD Stream Webcam** | Takes photos of the rice field (1080p, autofocus, glass lens, IR-cut filter) |
 | 7 | **RS485 5-in-1 Soil Sensor** | Measures pH, temperature, humidity, EC, and moisture of the soil |
 | 8 | **USB-to-RS485 Adapter** | Connects the soil sensor to the Pi (the Pi can't read RS485 directly) |
 | 9 | **12V DC Power Supply** | Powers the soil sensor (it needs more power than the Pi can provide) |
@@ -60,6 +60,7 @@ Follow the numbered files in this repository **in order**. Do NOT skip steps.
 | **5** | `5. VSCode Configuration` | Set up VS Code on your laptop to edit code on the Pi remotely | ~10 min |
 | **6** | `6. Running and Testing` | Deploy the AI model, test each component, run the full system | ~30 min |
 | **7** | `7. Sensor Calibration` | Verify the soil sensor is giving correct readings | ~10 min |
+| **8** | `README.md → Dashboard` | Set up Supabase and run the Streamlit web dashboard | ~20 min |
 
 ---
 
@@ -88,7 +89,27 @@ After setup, the project folder on the Pi (`~/thesis/`) looks like this:
     └── retraining_frames/           # Photos saved for retraining the AI model later
 ```
 
-> **You don't need to create this manually.** The setup script (`setup.sh`) in Step 4 creates all these folders for you.
+The **web dashboard** (on your laptop, not on the Pi) is in the `ui/` folder:
+
+```
+ui/
+├── app.py                           # Main dashboard page (metrics, detection, recent readings)
+├── requirements.txt                 # Python packages for the dashboard
+├── supabase_setup.sql               # SQL to create the database table (run once in Supabase)
+├── .streamlit/
+│   ├── config.toml                  # Streamlit theme and server settings
+│   ├── secrets.toml                 # Supabase credentials (DO NOT commit to git)
+│   └── secrets.toml.example         # Template — copy to secrets.toml and fill in your keys
+├── pages/
+│   ├── 1_Historical_Data.py         # Soil sensor trend charts over time
+│   ├── 2_Camera_Gallery.py          # Grid view of captured field images
+│   └── 3_Alerts.py                  # Alert log for threshold violations
+└── utils/
+    ├── __init__.py
+    └── supabase_client.py           # Supabase connection and data queries
+```
+
+> **You don't need to create these manually.** The setup script (`setup.sh`) in Step 4 creates the Pi-side folders for you. The `ui/` folder is already in this repository.
 
 ---
 
@@ -108,6 +129,8 @@ Once everything is set up, here are the commands you'll use most often. Run thes
 | Check if auto-start service is running | `sudo systemctl status thesis.service` | On the Pi |
 | View live system logs | `journalctl -u thesis.service -f` | On the Pi |
 | See saved WiFi networks | `nmcli connection show` | On the Pi |
+| **Start the web dashboard** | `cd ui && streamlit run app.py` | **On your laptop** |
+| Open dashboard in browser | Visit `http://localhost:8501` | **On your laptop** |
 
 ---
 
@@ -122,4 +145,7 @@ Once everything is set up, here are the commands you'll use most often. Run thes
 | Soil sensor returns `None` or all zeros | Check wiring (Step 3). Make sure the 12V power supply is plugged in. Try swapping the A+ and B- wires. |
 | Camera test says "Failed to capture" | Unplug and re-plug the USB webcam. Run `v4l2-ctl --list-devices` to check if the Pi sees it. |
 | VS Code can't connect to Pi | Make sure the Pi is powered on and connected to WiFi. Try `ssh pi@trio.local` from your laptop's terminal first. |
+| Dashboard shows "No data received yet" | The Pi hasn't sent any data to Supabase yet. Run `python3 src/main.py --once` on the Pi to send a test reading. |
+| Dashboard shows a Supabase connection error | Check that `ui/.streamlit/secrets.toml` has the correct `SUPABASE_URL` and `SUPABASE_KEY`. Also check that the Pi's `config/settings.py` has the same values. |
+| Dashboard doesn't show images | Make sure the `field-images` Storage bucket exists in Supabase with public SELECT and INSERT policies. |
 

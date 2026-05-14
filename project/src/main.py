@@ -153,8 +153,8 @@ def run_once(soil, camera, model, transmitter):
     # Save locally
     save_data(data)
 
-    # Transmit (if server configured)
-    if transmitter.server_url:
+    # Transmit to Supabase (or fallback server)
+    if transmitter.is_configured:
         transmitter.send(data)
 
     return data
