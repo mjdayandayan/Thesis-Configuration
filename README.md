@@ -2,6 +2,137 @@
 
 > **Thesis:** "Rice Monitoring System Using Raspberry Pi V5 and Computer Vision"
 
+---
+
+## QUICKSTART (For Co-Researchers)
+
+> **Already have the Pi, hardware, and this repo?** Follow this fast track. Each step references a detailed guide if you get stuck.
+
+### Prerequisites
+- Raspberry Pi 5 with Raspberry Pi OS 64-bit on SD card
+- Logitech C922 Pro webcam + RS485 soil sensor + USB-to-RS485 adapter + 12V supply
+- Laptop on the **same WiFi** as the Pi
+
+### 1. Flash & Boot the Pi (5 min)
+Use Raspberry Pi Imager → choose **Pi 5**, **Raspberry Pi OS 64-bit**, configure:
+- Hostname: `trio` | Username: `pi` | Password: `raspberrypi`
+- Enable SSH, enter your WiFi credentials
+- Flash, insert SD card, power on the Pi
+- *Detailed guide:* `1. Raspberry Pi Configuration.md`
+
+### 2. SSH In & Set Up WiFi (5 min)
+```bash
+ssh pi@trio.local                   # password: raspberrypi
+sudo apt update && sudo apt upgrade -y
+```
+Add any extra WiFi networks (home, school, hotspot) using `nmcli`:
+```bash
+sudo nmcli dev wifi connect "WiFi-Name" password "WiFi-Password"
+```
+- *Detailed guide:* `2. Command Prompt Configuration.md`
+
+### 3. Wire the Hardware (10 min)
+| Component | Action |
+|---|---|
+| **Webcam** | Plug into any Pi USB port |
+| **Soil sensor Brown wire** | → USB-to-RS485 adapter **A+** |
+| **Soil sensor Blue wire** | → USB-to-RS485 adapter **B-** |
+| **Soil sensor Red wire** | → 12V supply **+** |
+| **Soil sensor Black wire** | → 12V supply **-** |
+| **USB-to-RS485 adapter** | Plug into Pi USB port |
+
+> Power OFF the Pi before wiring. Yellow wire is optional (shield ground).
+- *Detailed guide:* `3. Hardware Setup.md`
+
+### 4. Install Software (10 min)
+```bash
+ssh pi@trio.local
+mkdir -p ~/thesis
+```
+On your **laptop**, copy the project files:
+```bash
+scp -r project/* pi@trio.local:~/thesis/
+```
+Back on the **Pi**:
+```bash
+cd ~/thesis
+bash setup.sh        # Installs everything — takes ~5-10 min
+source venv/bin/activate
+```
+- *Detailed guide:* `4. Development Environment Setup.md`
+
+### 5. Deploy the AI Model (2 min)
+The model file is in `project/src/model/`. Copy it to the Pi:
+```bash
+scp "project/src/model/rice-growth-monitoring-c922-runner-linux-aarch64-ethos-v1-impulse-#1.eim" pi@trio.local:~/thesis/models/
+```
+On the Pi, make it executable:
+```bash
+chmod +x ~/thesis/models/rice-growth-monitoring-c922-runner-linux-aarch64-ethos-v1-impulse-#1.eim
+```
+> `MODEL_PATH` in `config/settings.py` is already set to this filename. No edits needed.
+
+### 6. Test Each Component (5 min)
+On the Pi (with `venv` activated and `cd ~/thesis`):
+
+**Soil sensor** (make sure 12V is ON):
+```bash
+python3 -c "
+from src.sensors import SoilSensorRS485
+s = SoilSensorRS485(); r = s.read()
+print(r) if r else print('FAIL: check wiring/12V')
+s.cleanup()
+"
+```
+
+**Camera**:
+```bash
+python3 -c "
+from src.camera import Camera
+c = Camera(); f = c.capture_frame()
+print(f'OK: {f.shape}') if f is not None else print('FAIL: replug camera')
+c.release()
+"
+```
+
+**AI model** (needs both camera and model file):
+```bash
+python3 src/main.py --once
+```
+
+### 7. Run the System
+```bash
+# Single reading (quick test)
+python3 src/main.py --once
+
+# Continuous monitoring
+python3 src/main.py          # Ctrl+C to stop
+```
+
+### 8. Start the Web Dashboard (on your laptop)
+```bash
+cd ui
+pip install -r requirements.txt
+streamlit run app.py
+```
+Open `http://localhost:8501` in your browser.
+
+### Quick Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| Can't SSH to `trio.local` | Pi not on same WiFi. Wait 1-2 min after boot. |
+| Sensor returns None/zeros | Check 12V is ON. Try swapping A+ and B- wires. |
+| Camera fails | Unplug/replug webcam. Try `CAMERA_INDEX = 1` in settings. |
+| `ModuleNotFoundError` | Run `source venv/bin/activate` first. |
+| Model file error | Check `chmod +x` was run. Verify filename matches `MODEL_PATH`. |
+
+---
+
+> **Need more detail on any step?** Read the numbered guide files (1–7) in this repo. They explain every command in depth.
+
+---
+
 This guide walks you through **everything** — from a fresh Raspberry Pi to a working rice paddy monitoring system. Each step is numbered and explained. Follow them **in order**.
 
 ---
@@ -14,7 +145,7 @@ This system monitors rice paddies using:
 2. **A soil sensor** — measures 5 soil properties (moisture, temperature, humidity, pH, electrical conductivity)
 3. **A Raspberry Pi 5** — the small computer that runs everything, processes the photos with an AI model (Edge Impulse), and sends the data over WiFi
 
-The AI model (YOLO-Pro) identifies the growth stage of the rice (vegetative, booting, flowering, maturing) and detects weed growth from camera images.
+The AI model (FOMO MobileNetV2 0.35) identifies the growth stage of the rice (flowering, heading, mature, ripening) from camera images.
 
 ---
 
@@ -74,7 +205,7 @@ After setup, the project folder on the Pi (`~/thesis/`) looks like this:
 ├── requirements.txt                 # List of Python packages to install
 ├── venv/                            # Python virtual environment (auto-created)
 ├── models/
-│   └── your-model.eim               # The AI model file from Edge Impulse
+│   └── rice-growth-monitoring-c922-runner-linux-aarch64-ethos-v1-impulse-#1.eim  # The AI model file from Edge Impulse
 ├── src/
 │   ├── __init__.py                  # (required by Python — don't delete)
 │   ├── sensors.py                   # Code that reads the RS485 soil sensor

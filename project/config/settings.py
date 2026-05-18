@@ -49,14 +49,14 @@ CAMERA_HEIGHT = 1080
 # EDGE IMPULSE MODEL
 # =============================================================
 
-# Current model: YOLO-Pro (Attention with SiLU, nano 2.4M) — Edge Impulse
-# Architecture: YOLO-Pro object detection with bounding boxes
-# Classes: Background, Booting Stage, Flowering Stage, Maturing Stage,
-#          Vegetative Stage, Weed Growth
-# Training: 200 cycles, LR 0.001, pretrained weights, medium augmentation
+# Current model: FOMO (MobileNetV2 0.35) — Edge Impulse
+# Architecture: FOMO object detection (centroid-based)
+# Classes: flowering, heading, mature, ripening
+# Training: 100 cycles, LR 0.005, data augmentation enabled, 320x320 RGB
+# Quantized int8 — F1: 0.64, Precision: 0.68, Recall: 0.59
 # When you retrain, just swap the .eim file — no code changes needed.
-MODEL_PATH = "/home/pi/thesis/models/your-model.eim"
-CONFIDENCE_THRESHOLD = 0.4  # YOLO-Pro with dense rice scenes — lower threshold + NMS
+MODEL_PATH = "/home/pi/thesis/models/rice-growth-monitoring-c922-runner-linux-aarch64-ethos-v1-impulse-#1.eim"
+CONFIDENCE_THRESHOLD = 0.3  # FOMO with lower recall — use lower threshold to catch more detections
 
 # =============================================================
 # RETRAINING DATA CAPTURE
@@ -64,7 +64,7 @@ CONFIDENCE_THRESHOLD = 0.4  # YOLO-Pro with dense rice scenes — lower threshol
 
 # Save raw camera frames for uploading to Edge Impulse later.
 # These 1080p frames from the Logitech C922 will significantly
-# improve YOLO-Pro model accuracy when used as additional training data.
+# improve FOMO model accuracy when used as additional training data.
 SAVE_RETRAINING_FRAMES = True
 RETRAINING_DIR = "/home/pi/thesis/data/retraining_frames"
 RETRAINING_INTERVAL = 10  # Save every Nth capture (1 = every, 10 = every 10th)

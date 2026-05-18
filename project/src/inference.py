@@ -1,5 +1,5 @@
 """
-Edge Impulse YOLO-Pro model inference for rice growth stage detection.
+Edge Impulse FOMO model inference for rice growth stage detection.
 """
 
 import os
@@ -12,14 +12,15 @@ from config.settings import MODEL_PATH, CONFIDENCE_THRESHOLD
 
 
 class ModelInference:
-    """Wrapper for Edge Impulse Linux model inference (YOLO-Pro object detection)."""
+    """Wrapper for Edge Impulse Linux model inference (FOMO object detection)."""
 
     def __init__(self, model_path=MODEL_PATH):
         if not os.path.exists(model_path):
             raise FileNotFoundError(
                 f"Model not found at {model_path}. "
                 "Download from Edge Impulse (Deployment → Linux AARCH64) "
-                "and place in ~/thesis/models/"
+                "and place in ~/thesis/models/\n"
+                "Expected: rice-growth-monitoring-c922-runner-linux-aarch64-ethos-v1-impulse-#1.eim"
             )
 
         from edge_impulse_linux.image import ImageImpulseRunner
@@ -62,7 +63,7 @@ class ModelInference:
         Get the label with the highest confidence from classify() output.
         Handles both YOLO-Pro (bounding_boxes) and classification output formats.
         """
-        # YOLO-Pro returns bounding_boxes
+        # FOMO returns bounding_boxes (centroids with small width/height)
         bboxes = result.get('result', {}).get('bounding_boxes', [])
         if bboxes:
             # Filter by confidence threshold
@@ -92,7 +93,7 @@ class ModelInference:
 
     def get_all_detections(self, result):
         """
-        Get all YOLO-Pro detections above the confidence threshold.
+        Get all FOMO detections above the confidence threshold.
         Returns list of dicts: [{'label': str, 'confidence': float, 'x': int, 'y': int}, ...]
         """
         bboxes = result.get('result', {}).get('bounding_boxes', [])
