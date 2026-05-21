@@ -167,6 +167,35 @@ thresh_data = {
 import pandas as pd
 st.dataframe(pd.DataFrame(thresh_data), use_container_width=True, hide_index=True)
 
+# --- NPK Thresholds by Growth Stage ---
+st.markdown(
+    '<div class="info-card">'
+    '<h3>🧪 Critical NPK Thresholds by Rice Growth Stage</h3>'
+    '<p>Optimal available soil concentrations (mg/kg) required to maximize yield and prevent nutrient deficiencies '
+    'at each growth stage. Based on: Dobermann & Fairhurst (2000); Shrestha et al. (2020); Sulaeman et al. (2024).</p>'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+npk_data = {
+    'Growth Stage': [
+        '🌱 Vegetative (Early Tillering to Active Tillering)',
+        '🌿 Heading (Panicle Initiation & Booting)',
+        '🌸 Flowering (Anthesis & Pollination)',
+        '🌾 Maturing (Milky to Golden Ripe Stage)',
+    ],
+    'Nitrogen (N) mg/kg': ['30 – 50', '20 – 35', '15 – 25', '< 15 (Tapering down)'],
+    'Phosphorus (P) mg/kg': ['20 – 35', '15 – 25', '15 – 20', '10 – 15'],
+    'Potassium (K) mg/kg': ['80 – 120', '100 – 150', '90 – 130', '60 – 90'],
+    'Critical Focus': [
+        'Promotes active root development, leaf area expansion, and high tiller numbers.',
+        'Shift from structural growth to reproduction. Requires high K to boost spikelet numbers and prevent lodging.',
+        'P accelerates clean flowering timelines, while K powers cellular transport for upcoming grain filling.',
+        'High N is actively discouraged — delays maturation, increases green grains, and invites pests.',
+    ],
+}
+st.dataframe(pd.DataFrame(npk_data), use_container_width=True, hide_index=True)
+
 # --- Tech Stack ---
 st.markdown("---")
 st.markdown(

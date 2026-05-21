@@ -10,7 +10,9 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from config.settings import (
     RS485_PORT, RS485_BAUDRATE, RS485_SLAVE_ADDRESS, RS485_TIMEOUT,
-    RS485_REG_MOISTURE, RS485_NUM_REGISTERS
+    RS485_REG_MOISTURE, RS485_NUM_REGISTERS,
+    NPK_SENSOR_ENABLED, NPK_PORT, NPK_BAUDRATE, NPK_SLAVE_ADDRESS,
+    NPK_TIMEOUT, NPK_REG_NITROGEN, NPK_NUM_REGISTERS,
 )
 
 
@@ -34,6 +36,7 @@ class SoilSensorRS485:
             self.instrument.serial.parity = minimalmodbus.serial.PARITY_NONE
             self.instrument.serial.stopbits = 1
             self.instrument.mode = minimalmodbus.MODE_RTU
+            self.instrument.close_port_after_each_call = True
             self.available = True
         except Exception as e:
             print(f"[SENSOR] RS485 soil sensor not available: {e}")
@@ -89,6 +92,75 @@ class SoilSensorRS485:
             self.instrument.serial.close()
 
 
+class NPKSensorRS485:
+    """
+    RS485 NPK soil nutrient sensor (Nitrogen, Phosphorus, Potassium).
+    Separate from the 5-in-1 sensor but on the same RS485 bus.
+
+    Typical output: values in mg/kg (parts per million).
+    """
+
+    def __init__(self, port=NPK_PORT, baudrate=NPK_BAUDRATE,
+                 address=NPK_SLAVE_ADDRESS, timeout=NPK_TIMEOUT):
+        self.available = False
+        if not NPK_SENSOR_ENABLED:
+            print("[NPK] NPK sensor disabled in settings.")
+            return
+        try:
+            import minimalmodbus
+
+            self.instrument = minimalmodbus.Instrument(port, address)
+            self.instrument.serial.baudrate = baudrate
+            self.instrument.serial.timeout = timeout
+            self.instrument.serial.bytesize = 8
+            self.instrument.serial.parity = minimalmodbus.serial.PARITY_NONE
+            self.instrument.serial.stopbits = 1
+            self.instrument.mode = minimalmodbus.MODE_RTU
+            self.instrument.close_port_after_each_call = True
+            self.available = True
+        except Exception as e:
+            print(f"[NPK] NPK sensor not available: {e}")
+            print(f"[NPK] The system will continue without NPK data.")
+            self.instrument = None
+
+    def read(self, retries=3):
+        """
+        Read N, P, K values from the sensor.
+        Returns dict with nitrogen, phosphorus, potassium (all in mg/kg).
+
+        Register mapping (adjust in settings.py if your sensor differs):
+          0x001E: Nitrogen   (value = mg/kg)
+          0x001F: Phosphorus (value = mg/kg)
+          0x0020: Potassium  (value = mg/kg)
+        """
+        for attempt in range(retries):
+            if not self.available:
+                return None
+            try:
+                registers = self.instrument.read_registers(
+                    NPK_REG_NITROGEN,
+                    NPK_NUM_REGISTERS,
+                    functioncode=3
+                )
+
+                return {
+                    'nitrogen': registers[0],       # mg/kg
+                    'phosphorus': registers[1],     # mg/kg
+                    'potassium': registers[2],      # mg/kg
+                }
+
+            except Exception as e:
+                print(f"[NPK] Read attempt {attempt + 1} failed: {e}")
+                time.sleep(1)
+
+        print("[NPK] All retries failed")
+        return None
+
+    def cleanup(self):
+        if hasattr(self, 'instrument') and self.instrument and self.instrument.serial.is_open:
+            self.instrument.serial.close()
+
+
 # --- Run directly to test ---
 if __name__ == "__main__":
     print("Testing RS485 5-in-1 Soil Sensor...")
@@ -106,3 +178,17 @@ if __name__ == "__main__":
         else:
             print("  Sensor read failed — check wiring and USB-to-RS485 adapter")
     sensor.cleanup()
+
+    print("\nTesting RS485 NPK Sensor...")
+    npk = NPKSensorRS485()
+    if not npk.available:
+        print("  NPK sensor not connected or disabled — skipping test.")
+    else:
+        result = npk.read()
+        if result:
+            print(f"  Nitrogen (N):   {result['nitrogen']} mg/kg")
+            print(f"  Phosphorus (P): {result['phosphorus']} mg/kg")
+            print(f"  Potassium (K):  {result['potassium']} mg/kg")
+        else:
+            print("  NPK sensor read failed — check wiring and slave address")
+    npk.cleanup()

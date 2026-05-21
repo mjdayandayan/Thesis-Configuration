@@ -16,9 +16,10 @@ from config.settings import (
     LOG_INTERVAL_SECONDS, DATA_DIR, LOG_DIR, MODEL_PATH,
     SAVE_RETRAINING_FRAMES, RETRAINING_DIR, RETRAINING_INTERVAL,
     SOIL_MOISTURE_MIN, SOIL_PH_MIN, SOIL_PH_MAX,
-    SOIL_EC_MIN, SOIL_EC_MAX, SOIL_TEMP_MIN, SOIL_TEMP_MAX
+    SOIL_EC_MIN, SOIL_EC_MAX, SOIL_TEMP_MIN, SOIL_TEMP_MAX,
+    NPK_THRESHOLDS
 )
-from src.sensors import SoilSensorRS485
+from src.sensors import SoilSensorRS485, NPKSensorRS485
 from src.camera import Camera
 from src.transmit import DataTransmitter
 
@@ -58,7 +59,7 @@ def check_alerts(data):
     alerts = []
     soil = data.get('soil_data', {})
     if not isinstance(soil, dict):
-        return alerts
+        soil = {}
 
     moisture = soil.get('soil_moisture')
     if moisture is not None and moisture < SOIL_MOISTURE_MIN:
@@ -85,6 +86,53 @@ def check_alerts(data):
         elif ec > SOIL_EC_MAX:
             alerts.append(f"HIGH SOIL EC: {ec} µS/cm (max: {SOIL_EC_MAX})")
 
+    # --- NPK threshold checks based on detected growth stage ---
+    npk = data.get('npk_data', {})
+    prediction = data.get('prediction', {})
+    stage = (prediction.get('label') or '').lower().strip()
+    thresholds = NPK_THRESHOLDS.get(stage)
+
+    if thresholds and isinstance(npk, dict):
+        nitrogen = npk.get('nitrogen')
+        phosphorus = npk.get('phosphorus')
+        potassium = npk.get('potassium')
+
+        if nitrogen is not None:
+            if nitrogen < thresholds['n_min']:
+                alerts.append(
+                    f"LOW NITROGEN for {stage}: {nitrogen} mg/kg "
+                    f"(optimal: {thresholds['n_min']}–{thresholds['n_max']} mg/kg)"
+                )
+            elif nitrogen > thresholds['n_max']:
+                alerts.append(
+                    f"HIGH NITROGEN for {stage}: {nitrogen} mg/kg "
+                    f"(optimal: {thresholds['n_min']}–{thresholds['n_max']} mg/kg)"
+                )
+
+        if phosphorus is not None:
+            if phosphorus < thresholds['p_min']:
+                alerts.append(
+                    f"LOW PHOSPHORUS for {stage}: {phosphorus} mg/kg "
+                    f"(optimal: {thresholds['p_min']}–{thresholds['p_max']} mg/kg)"
+                )
+            elif phosphorus > thresholds['p_max']:
+                alerts.append(
+                    f"HIGH PHOSPHORUS for {stage}: {phosphorus} mg/kg "
+                    f"(optimal: {thresholds['p_min']}–{thresholds['p_max']} mg/kg)"
+                )
+
+        if potassium is not None:
+            if potassium < thresholds['k_min']:
+                alerts.append(
+                    f"LOW POTASSIUM for {stage}: {potassium} mg/kg "
+                    f"(optimal: {thresholds['k_min']}–{thresholds['k_max']} mg/kg)"
+                )
+            elif potassium > thresholds['k_max']:
+                alerts.append(
+                    f"HIGH POTASSIUM for {stage}: {potassium} mg/kg "
+                    f"(optimal: {thresholds['k_min']}–{thresholds['k_max']} mg/kg)"
+                )
+
     return alerts
 
 
@@ -98,7 +146,7 @@ def save_data(data):
         f.write(json.dumps(data) + '\n')
 
 
-def run_once(soil, camera, model, transmitter):
+def run_once(soil, npk_sensor, camera, model, transmitter):
     """Take a single complete reading."""
     timestamp = datetime.now().isoformat()
     data = {'timestamp': timestamp}
@@ -119,6 +167,21 @@ def run_once(soil, camera, model, transmitter):
             logger.warning("Soil sensor read failed")
     else:
         data['soil_data'] = None
+
+    # Read NPK sensor
+    if npk_sensor.available:
+        npk_data = npk_sensor.read()
+        data['npk_data'] = npk_data
+        if npk_data:
+            logger.info(
+                f"NPK Sensor: N={npk_data.get('nitrogen')} mg/kg, "
+                f"P={npk_data.get('phosphorus')} mg/kg, "
+                f"K={npk_data.get('potassium')} mg/kg"
+            )
+        else:
+            logger.warning("NPK sensor read failed")
+    else:
+        data['npk_data'] = None
 
     # Capture image and run inference
     frame = camera.capture_frame()
@@ -175,6 +238,13 @@ def main():
         logger.info("RS485 soil sensor: connected")
     else:
         logger.warning("RS485 soil sensor: NOT AVAILABLE — running without soil data")
+
+    npk_sensor = NPKSensorRS485()
+    if npk_sensor.available:
+        logger.info("NPK sensor: connected")
+    else:
+        logger.warning("NPK sensor: NOT AVAILABLE — running without NPK data")
+
     camera = Camera()
     transmitter = DataTransmitter()
 
@@ -190,17 +260,18 @@ def main():
 
     try:
         if args.once:
-            data = run_once(soil, camera, model, transmitter)
+            data = run_once(soil, npk_sensor, camera, model, transmitter)
             print(json.dumps(data, indent=2))
         else:
             logger.info(f"Continuous monitoring — interval: {LOG_INTERVAL_SECONDS}s")
             while True:
-                run_once(soil, camera, model, transmitter)
+                run_once(soil, npk_sensor, camera, model, transmitter)
                 time.sleep(LOG_INTERVAL_SECONDS)
     except KeyboardInterrupt:
         logger.info("Monitoring stopped by user")
     finally:
         soil.cleanup()
+        npk_sensor.cleanup()
         camera.release()
         if model:
             model.close()

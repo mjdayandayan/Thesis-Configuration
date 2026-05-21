@@ -52,6 +52,7 @@ class DataTransmitter:
             # Flatten nested data for the readings table
             soil = data.get('soil_data') or {}
             prediction = data.get('prediction') or {}
+            npk = data.get('npk_data') or {}
 
             record = {
                 'timestamp': data.get('timestamp'),
@@ -66,6 +67,15 @@ class DataTransmitter:
                 'image_url': image_url,
                 'alerts': data.get('alerts', [])
             }
+
+            # Only include NPK fields if sensor data is available
+            # (prevents errors if columns don't exist in Supabase yet)
+            if npk.get('nitrogen') is not None:
+                record['nitrogen'] = npk['nitrogen']
+            if npk.get('phosphorus') is not None:
+                record['phosphorus'] = npk['phosphorus']
+            if npk.get('potassium') is not None:
+                record['potassium'] = npk['potassium']
 
             response = requests.post(
                 f"{self.supabase_url}/rest/v1/readings",

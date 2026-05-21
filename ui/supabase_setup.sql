@@ -15,6 +15,9 @@ CREATE TABLE IF NOT EXISTS readings (
     ec REAL,
     ph REAL,
     soil_humidity REAL,
+    nitrogen REAL,
+    phosphorus REAL,
+    potassium REAL,
     prediction_label TEXT,
     prediction_confidence REAL,
     detections JSONB DEFAULT '[]',
@@ -48,4 +51,13 @@ CREATE POLICY "Allow public insert" ON readings
 --   6. Go to the bucket → Policies → Add policy
 --   7. Add a policy for INSERT (allow all) so the RPi can upload
 --   8. Add a policy for SELECT (allow all) so the dashboard can view
+-- ============================================================
+
+-- ============================================================
+-- MIGRATION: If your table already exists without NPK columns,
+-- run these ALTER statements to add them:
+--
+--   ALTER TABLE readings ADD COLUMN IF NOT EXISTS nitrogen REAL;
+--   ALTER TABLE readings ADD COLUMN IF NOT EXISTS phosphorus REAL;
+--   ALTER TABLE readings ADD COLUMN IF NOT EXISTS potassium REAL;
 -- ============================================================

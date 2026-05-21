@@ -35,6 +35,29 @@ RS485_REG_HUMIDITY = 0x0004      # Soil humidity register (value / 10 = %)
 RS485_NUM_REGISTERS = 5          # Number of consecutive registers to read
 
 # =============================================================
+# RS485 NPK SOIL SENSOR (Nitrogen + Phosphorus + Potassium)
+# =============================================================
+# Sensor: RS485 NPK Soil Nutrient Sensor (separate from 5-in-1)
+# Some 7-in-1 sensors include NPK in the same device.
+# Set NPK_SENSOR_ENABLED = False if you don't have this sensor.
+#
+# Wiring: Same RS485 bus (A+/B-) but different slave address.
+# If using the same adapter, change NPK_SLAVE_ADDRESS to differ from above.
+
+NPK_SENSOR_ENABLED = True          # Set False to disable NPK sensor
+NPK_PORT = "/dev/ttyUSB0"          # Same bus or separate adapter
+NPK_BAUDRATE = 4800
+NPK_SLAVE_ADDRESS = 2              # Different address from 5-in-1 sensor
+NPK_TIMEOUT = 1
+
+# NPK register addresses (common defaults for RS485 NPK sensors)
+# Typical output: mg/kg (no division needed, raw value = mg/kg)
+NPK_REG_NITROGEN = 0x001E         # Nitrogen register (value = mg/kg)
+NPK_REG_PHOSPHORUS = 0x001F       # Phosphorus register (value = mg/kg)
+NPK_REG_POTASSIUM = 0x0020        # Potassium register (value = mg/kg)
+NPK_NUM_REGISTERS = 3             # N, P, K consecutive registers
+
+# =============================================================
 # CAMERA CONFIGURATION
 # =============================================================
 
@@ -89,6 +112,63 @@ SOIL_EC_MIN = 200             # µS/cm — minimum EC for rice
 SOIL_EC_MAX = 2000            # µS/cm — above this indicates salinity issues
 SOIL_TEMP_MIN = 18.0          # °C — soil too cold for rice
 SOIL_TEMP_MAX = 35.0          # °C — soil too hot
+
+# =============================================================
+# NPK THRESHOLDS BY RICE GROWTH STAGE (mg/kg)
+# =============================================================
+# Based on: Dobermann & Fairhurst (2000); Shrestha et al. (2020);
+#           Sulaeman et al. (2024)
+# These represent optimal available soil concentrations (mg/kg) required
+# to maximize yield and prevent nutrient deficiencies at each stage.
+#
+# Format: { "stage": {"n_min", "n_max", "p_min", "p_max", "k_min", "k_max"} }
+
+NPK_THRESHOLDS = {
+    "vegetative": {
+        "n_min": 30, "n_max": 50,    # High N for leaf/tiller growth
+        "p_min": 20, "p_max": 35,    # Root development
+        "k_min": 80, "k_max": 120,   # Moderate K
+        "description": "Early Tillering to Active Tillering",
+        "focus": "Promotes active root development, leaf area expansion, and high tiller numbers.",
+    },
+    "heading": {
+        "n_min": 20, "n_max": 35,    # N tapering slightly
+        "p_min": 15, "p_max": 25,    # Moderate P
+        "k_min": 100, "k_max": 150,  # High K for stalk strength
+        "description": "Panicle Initiation & Booting",
+        "focus": "Shift from structural growth to reproduction. Requires high K to boost spikelet numbers and prevent lodging.",
+    },
+    "flowering": {
+        "n_min": 15, "n_max": 25,    # Moderate N for flag leaf
+        "p_min": 15, "p_max": 20,    # Steady P for pollination
+        "k_min": 90, "k_max": 130,   # Steady K for grain filling
+        "description": "Anthesis & Pollination",
+        "focus": "P accelerates clean flowering timelines, while K powers cellular transport for upcoming grain filling.",
+    },
+    "maturing": {
+        "n_min": 0, "n_max": 15,     # Low N — high N delays maturation
+        "p_min": 10, "p_max": 15,    # Reduced P
+        "k_min": 60, "k_max": 90,    # Reduced K
+        "description": "Milky to Golden Ripe Stage",
+        "focus": "High Nitrogen is actively discouraged as it delays maturation, increases green grains, and invites pests.",
+    },
+    # Alias: model may output "mature" instead of "maturing"
+    "mature": {
+        "n_min": 0, "n_max": 15,
+        "p_min": 10, "p_max": 15,
+        "k_min": 60, "k_max": 90,
+        "description": "Milky to Golden Ripe Stage",
+        "focus": "High Nitrogen is actively discouraged as it delays maturation, increases green grains, and invites pests.",
+    },
+    # Alias: model may output "ripening"
+    "ripening": {
+        "n_min": 0, "n_max": 15,
+        "p_min": 10, "p_max": 15,
+        "k_min": 60, "k_max": 90,
+        "description": "Milky to Golden Ripe Stage",
+        "focus": "High Nitrogen is actively discouraged as it delays maturation, increases green grains, and invites pests.",
+    },
+}
 
 # =============================================================
 # DATA TRANSMISSION — SUPABASE
