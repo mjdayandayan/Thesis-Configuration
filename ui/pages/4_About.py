@@ -165,7 +165,7 @@ thresh_data = {
     ],
 }
 import pandas as pd
-st.dataframe(pd.DataFrame(thresh_data), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(thresh_data), width="stretch", hide_index=True)
 
 # --- NPK Thresholds by Growth Stage ---
 st.markdown(
@@ -194,7 +194,7 @@ npk_data = {
         'High N is actively discouraged — delays maturation, increases green grains, and invites pests.',
     ],
 }
-st.dataframe(pd.DataFrame(npk_data), use_container_width=True, hide_index=True)
+st.dataframe(pd.DataFrame(npk_data), width="stretch", hide_index=True)
 
 # --- Tech Stack ---
 st.markdown("---")

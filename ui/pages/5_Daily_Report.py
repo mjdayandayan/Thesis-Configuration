@@ -220,7 +220,7 @@ if not hourly.empty:
         barmode='group',
         legend=dict(orientation='h', yanchor='top', y=1.15, xanchor='center', x=0.5),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 # --- Growth Stage breakdown ---
 if not stages.empty:

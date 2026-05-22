@@ -258,7 +258,7 @@ with st.sidebar:
     st.markdown("### 🌾 Rice Field Monitor")
     st.caption("Smart IoT monitoring system")
     st.divider()
-    if st.button("🔄 Refresh Data", use_container_width=True):
+    if st.button("🔄 Refresh Data", width="stretch"):
         st.cache_data.clear()
         st.rerun()
     st.divider()
@@ -420,7 +420,7 @@ with col_score:
         height=210, margin=dict(l=20, r=20, t=50, b=10),
         paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
     )
-    st.plotly_chart(fig, use_container_width=True, key="health_gauge")
+    st.plotly_chart(fig, width="stretch", key="health_gauge")
 
 # --- Growth Stage ---
 label = latest.get('prediction_label', '')
@@ -459,7 +459,7 @@ with col_stage:
 with col_photo:
     image_url = latest.get('image_url')
     if image_url:
-        st.image(image_url, caption="Latest field capture", use_container_width=True)
+        st.image(image_url, caption="Latest field capture", width="stretch")
     else:
         st.markdown(
             "<div style='text-align:center; padding:55px 20px; background:linear-gradient(135deg,#f5f5f5,#eeeeee); "
@@ -600,7 +600,7 @@ with col_chart:
                         font=dict(size=11)),
             hovermode='x unified',
         )
-        st.plotly_chart(fig, use_container_width=True, key="sparklines")
+        st.plotly_chart(fig, width="stretch", key="sparklines")
 
 with col_table:
     st.markdown('<div class="section-header">📋 Recent Readings</div>', unsafe_allow_html=True)
@@ -619,7 +619,7 @@ with col_table:
             show_df['Stage'] = show_df['Stage'].str.replace('_', ' ').str.title()
         if 'Time' in show_df.columns:
             show_df['Time'] = pd.to_datetime(show_df['Time']).dt.strftime('%I:%M %p')
-        st.dataframe(show_df, use_container_width=True, hide_index=True, height=260)
+        st.dataframe(show_df, width="stretch", hide_index=True, height=260)
 
 # ========== ROW 4: Smart Recommendations ==========
 st.markdown("")

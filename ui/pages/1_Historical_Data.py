@@ -112,7 +112,7 @@ with sc5:
         data=csv_data,
         file_name=f"soil_data_{start_date}_{end_date}.csv",
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
 
 st.markdown("")
@@ -165,13 +165,13 @@ with col_a:
     fig = make_chart(df, 'soil_moisture', '💧 Water Level', '%', 40, 80,
                      '#2196F3', 'rgba(33,150,243,0.08)')
     if fig:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 with col_b:
     fig = make_chart(df, 'soil_temperature', '🌡️ Temperature', '°C', 18, 35,
                      '#FF7043', 'rgba(255,112,67,0.08)')
     if fig:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 col_c, col_d = st.columns(2)
 
@@ -179,13 +179,13 @@ with col_c:
     fig = make_chart(df, 'ph', '🧪 Soil Acidity (pH)', 'pH', 5.5, 7.0,
                      '#AB47BC', 'rgba(171,71,188,0.08)')
     if fig:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 with col_d:
     fig = make_chart(df, 'ec', '🧬 Soil Nutrients', 'µS/cm', 200, 2000,
                      '#26A69A', 'rgba(38,166,154,0.08)')
     if fig:
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
 
 # --- Growth Stages ---
 st.markdown("---")
@@ -221,6 +221,6 @@ if not labels.empty:
         yaxis=dict(showgrid=False, tickfont=dict(size=12)),
         barmode='stack',
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 else:
     st.info("No growth stage detections in this period.")

@@ -121,7 +121,7 @@ fig.update_layout(
     xaxis=dict(side='bottom'),
     yaxis=dict(autorange='reversed'),
 )
-st.plotly_chart(fig, use_container_width=True)
+st.plotly_chart(fig, width="stretch")
 
 # --- Key Insights ---
 st.markdown("#### 💡 Key Insights")

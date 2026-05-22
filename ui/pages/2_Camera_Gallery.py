@@ -85,7 +85,7 @@ for i in range(0, len(images), cols_per_row):
                     stage_display = label.replace('_', ' ').title() if label else 'Unknown'
                     tag_cls = 'weed-tag' if 'weed' in label.lower() else ''
 
-                    st.image(img['image_url'], use_container_width=True)
+                    st.image(img['image_url'], width="stretch")
                     st.markdown(
                         f'<div class="photo-meta">'
                         f'<span class="time">{ts_display}</span>'
